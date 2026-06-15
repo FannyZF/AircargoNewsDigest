@@ -33,7 +33,7 @@
     <div style="margin-top:32px;text-align:left;">
         <div class="section-title">最近新闻</div>
         {% for news in recent_items[:10] %}
-        <div class="card" data-source="{{ news.source }}" data-categories="{{ news.categories }}" data-regions="{{ news.regions }}">
+        <div class="card" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
             <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
             <div class="card-meta">
                 <span class="badge badge-source">{{ news.source }}</span>
@@ -52,7 +52,7 @@
 {% if cat_items %}
 <div class="section-title cat-section" data-cat="{{ cat_id }}">{{ cat_name }} ({{ cat_items|length }})</div>
 {% for news in cat_items %}
-<div class="card" data-source="{{ news.source }}" data-categories="{{ news.categories }}" data-regions="{{ news.regions }}">
+<div class="card" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
     <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
     <div class="card-meta">
         <span class="badge badge-source">{{ news.source }}</span>
@@ -85,8 +85,8 @@ function allCards() { return document.querySelectorAll('.card'); }
 function allSections() { return document.querySelectorAll('.cat-section'); }
 
 function getSource(card) { return card.getAttribute('data-source'); }
-function getCategories(card) { return JSON.parse(card.getAttribute('data-categories') || '[]'); }
-function getRegions(card) { return JSON.parse(card.getAttribute('data-regions') || '[]'); }
+function getCategories(card) { var v = card.getAttribute('data-categories'); return v ? v.split(',') : []; }
+function getRegions(card) { var v = card.getAttribute('data-regions'); return v ? v.split(',') : []; }
 
 function visibleCards() {
     var cards = [];
@@ -138,23 +138,21 @@ function buildSidebar() {
     });
     document.getElementById('filter-sources').innerHTML = srcHtml;
 
-    // Categories
+    // Categories - show all
     var catHtml = '';
     CATEGORY_ORDER.forEach(function(c) {
         var count = 0;
         allCards().forEach(function(card) { if (getCategories(card).indexOf(c[0]) !== -1) count++; });
-        if (count === 0 && activeCategory !== c[0]) return;
         var cls = activeCategory === c[0] ? 'active' : '';
         catHtml += '<a href="#" class="' + cls + '" onclick="toggleCategory(\'' + c[0] + '\');return false;">' + c[1] + ' (' + count + ')</a>';
     });
     document.getElementById('filter-categories').innerHTML = catHtml;
 
-    // Regions
+    // Regions - show all
     var regHtml = '';
     REGION_ORDER.forEach(function(r) {
         var count = 0;
         allCards().forEach(function(card) { if (getRegions(card).indexOf(r) !== -1) count++; });
-        if (count === 0 && activeRegion !== r) return;
         var cls = activeRegion === r ? 'active' : '';
         regHtml += '<a href="#" class="' + cls + '" onclick="toggleRegion(\'' + r + '\');return false;">' + REGION_LABELS[r] + ' (' + count + ')</a>';
     });
