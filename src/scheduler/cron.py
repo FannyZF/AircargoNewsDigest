@@ -26,6 +26,13 @@ class Scheduler:
         )
         self._job_func = job_func
 
+    def start_background(self):
+        if not self.enabled:
+            logger.info("Scheduler is disabled in config")
+            return
+        self.scheduler.start()
+        logger.info("Scheduler started in background, next run at %s daily (timezone: %s)", self.time, self.timezone)
+
     def start(self):
         if not self.enabled:
             logger.info("Scheduler is disabled in config")

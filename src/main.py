@@ -250,6 +250,22 @@ def cmd_web(config: dict, _args):
 
     port = int(os.environ.get("PORT", "18903"))
     app = create_app(config)
+
+    # Start daily scheduler in background
+    def daily_job():
+        logger.info("=== Scheduled daily run starting ===")
+        try:
+            cmd_collect(config, None)
+            cmd_process(config, None)
+            cmd_report(config, None)
+            logger.info("=== Scheduled daily run complete ===")
+        except Exception as e:
+            logger.error("Scheduled run failed: %s", e)
+
+    scheduler = Scheduler(config, daily_job)
+    scheduler.start_background()
+    logger.info("Daily scheduler started, runs at %s %s", config.get("schedule", {}).get("time", "23:00"), config.get("schedule", {}).get("timezone", "Asia/Shanghai"))
+
     logger.info("Starting web server at http://0.0.0.0:%d", port)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
