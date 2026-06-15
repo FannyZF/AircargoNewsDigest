@@ -6,6 +6,16 @@
 
 <div style="margin-bottom:16px;">
     <button class="btn btn-primary" onclick="showAddForm()" id="add-btn">+ 添加来源</button>
+    <span style="margin-left:12px;color:var(--text-secondary);font-size:13px;">只需填写网站首页，点击「自动探测」一键识别选择器</span>
+</div>
+
+<div id="auto-detect-section" style="display:none;margin-bottom:16px;" class="card">
+    <h3 style="margin-bottom:10px;">自动探测</h3>
+    <div style="display:flex;gap:10px;align-items:center;">
+        <input type="text" id="detect-url" placeholder="输入新闻列表页 URL..." style="flex:1;"/>
+        <button class="btn btn-primary" onclick="autoDetect()" id="detect-btn">自动探测</button>
+    </div>
+    <div id="detect-result" style="margin-top:10px;font-size:13px;"></div>
 </div>
 
 <div id="add-form" style="display:none;margin-bottom:24px;" class="card">
@@ -58,8 +68,57 @@
 {% endblock %}
 {% block scripts %}
 <script>
-function showAddForm() { document.getElementById('add-form').style.display = 'block'; }
-function hideAddForm() { document.getElementById('add-form').style.display = 'none'; }
+function showAddForm() {
+    document.getElementById('add-form').style.display = 'block';
+    document.getElementById('auto-detect-section').style.display = 'block';
+}
+function hideAddForm() {
+    document.getElementById('add-form').style.display = 'none';
+    document.getElementById('auto-detect-section').style.display = 'none';
+}
+
+async function autoDetect() {
+    const url = document.getElementById('detect-url').value.trim();
+    if (!url) { alert('请输入网站首页 URL'); return; }
+    const btn = document.getElementById('detect-btn');
+    btn.innerHTML = '<span class="spinner"></span>探测中';
+    btn.disabled = true;
+    document.getElementById('detect-result').innerHTML = '';
+    try {
+        const resp = await fetch('/api/sources/detect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url: url})
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            const s = data.suggestions;
+            document.getElementById('src-name').value = new URL(url).hostname.replace('www.', '');
+            document.getElementById('src-base-url').value = url;
+            document.getElementById('src-list-url').value = url;
+            document.getElementById('src-container').value = s.list_container || '';
+            document.getElementById('src-title').value = s.title || '';
+            document.getElementById('src-link').value = s.link || '';
+            document.getElementById('src-date').value = s.date || '';
+            document.getElementById('src-date-attr').value = s.date_attr || 'datetime';
+            document.getElementById('src-date-regex').value = s.date_regex || '';
+            document.getElementById('src-summary').value = s.summary || '';
+            document.getElementById('src-content').value = s.content || '';
+            document.getElementById('src-pagination').value = s.pagination || '';
+            document.getElementById('detect-result').innerHTML =
+                '<span style="color:#2e7d32;">&#10004; 已识别 ' + data.container_count + ' 个新闻容器，选择器已自动填入下方表单，请核对后确认添加</span>';
+        } else {
+            document.getElementById('detect-result').innerHTML =
+                '<span style="color:#c62828;">探测失败: ' + (data.detail || '未知错误') + '</span>';
+        }
+    } catch(e) {
+        document.getElementById('detect-result').innerHTML =
+            '<span style="color:#c62828;">网络错误: ' + e.message + '</span>';
+    } finally {
+        btn.innerHTML = '自动探测';
+        btn.disabled = false;
+    }
+}
 
 async function addSource() {
     const data = {

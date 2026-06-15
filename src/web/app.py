@@ -132,6 +132,153 @@ def create_app(config: dict) -> FastAPI:
     async def sources_page(request: Request):
         return render_template("sources.html", {"request": request, "sources": config.get("sources", [])})
 
+    @app.post("/api/sources/detect")
+    async def detect_selectors(data: dict = Body(...)):
+        url = data.get("url", "").strip()
+        if not url:
+            return JSONResponse({"detail": "URL is required"}, status_code=400)
+
+        try:
+            from bs4 import BeautifulSoup
+            import re
+            from datetime import datetime
+
+            html = scraper._fetch(url)
+            if not html:
+                return JSONResponse({"detail": "Failed to fetch URL"}, status_code=400)
+
+            soup = BeautifulSoup(html, "lxml")
+
+            # remove noise
+            for t in soup.select("script, style, nav, footer, noscript, iframe"):
+                t.decompose()
+
+            # find repeating containers
+            container_candidates = []
+            for tag_name in ["article", "li", "div"]:
+                for el in soup.select(tag_name):
+                    links = el.select("a")
+                    if not links:
+                        continue
+                    cls = " ".join(el.get("class", [])) if el.get("class") else ""
+                    if any(kw in cls for kw in ["post", "article", "news", "entry", "item", "story", "summary", "card", "media", "list"]):
+                        container_candidates.append(el)
+
+            # if nothing found, try broader search
+            if not container_candidates:
+                for el in soup.select("article, div.post, div.article, li"):
+                    if el.select("a") and el.select_one("time, [datetime], span.date, div.date"):
+                        container_candidates.append(el)
+
+            # pick best container
+            best_container = None
+            best_score = 0
+            for el in container_candidates:
+                links = el.select("a[href]")
+                date_els = el.select("time, [datetime]") or el.select("*")
+                text = el.get_text()
+                score = len(links) * 2 + (1 if re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", text) else 0)
+                if score > best_score:
+                    best_score = score
+                    best_container = el
+
+            if not best_container:
+                return JSONResponse({"detail": "无法自动识别新闻列表结构，请手动填写"}, status_code=400)
+
+            # determine container tag + class
+            tag = best_container.name
+            cls = " ".join(best_container.get("class", []))
+            container_sel = f"{tag}.{cls.replace(' ', '.')}" if cls else tag
+
+            # find same-type containers (siblings or parent children)
+            all_containers = soup.select(container_sel)
+            if len(all_containers) < 3:
+                # try parent's children
+                parent = best_container.parent
+                all_containers = parent.select(f"> {tag}")
+
+            # title selector
+            title_sel = ""
+            for sel in ["h2 a", "h3 a", "a.title", "a[class*=title]", "a[class*=heading]", "h2.entry-title a"]:
+                if best_container.select_one(sel):
+                    title_sel = sel
+                    break
+            if not title_sel:
+                # find the first link that looks like a title
+                linked_headings = best_container.select("h1 a, h2 a, h3 a, h4 a")
+                if linked_headings:
+                    htag = linked_headings[0].parent.name
+                    title_sel = f"{htag} a"
+
+            # date selector
+            date_sel = ""
+            date_attr = "datetime"
+            date_regex = ""
+            time_el = best_container.select_one("time[datetime]")
+            if time_el:
+                date_sel = "time"
+                parent_tag = time_el.parent.name
+                cls_list = " ".join(time_el.parent.get("class", []))
+                if cls_list:
+                    date_sel = f"{parent_tag}.{cls_list.replace(' ', '.')} time"
+            else:
+                for dsel in [".date", ".post-date", ".entry-date", ".meta time", ".small", "span.date"]:
+                    if best_container.select_one(dsel):
+                        date_sel = dsel
+                        break
+                if not date_sel:
+                    date_sel = "time, [datetime]"
+
+            # summary selector
+            summary_sel = ""
+            for ssel in ["p.excerpt", "p.summary", "div.excerpt", "div.entry-summary", "div.summary", ".entry-content p", ".post-excerpt"]:
+                if best_container.select_one(ssel):
+                    summary_sel = ssel
+                    break
+            if not summary_sel:
+                ps = best_container.select("p")
+                if ps:
+                    summary_sel = "p"
+
+            # article content selector (from detail page - educated guess)
+            content_sel = "div.entry-content, div.post-content, article, div.article-body, div.content"
+
+            # pagination guess
+            pagination = ""
+            pager = soup.select_one(".pagination, .nav-links, nav.pagination, a.next, a[rel=next]")
+            if pager:
+                page_link = soup.select_one("a.page-numbers")
+                if page_link:
+                    href = page_link.get("href", "")
+                    page_match = re.search(r"page/(\d+)", href)
+                    if page_match:
+                        pagination = "/page/{page}/"
+                    else:
+                        num_match = re.search(r"[?&]paged?=(\d+)", href)
+                        if num_match:
+                            pagination = "?page={page}"
+
+            return JSONResponse({
+                "status": "ok",
+                "url": url,
+                "container_count": len(all_containers),
+                "suggestions": {
+                    "list_container": container_sel,
+                    "title": title_sel,
+                    "link": title_sel,
+                    "date": date_sel,
+                    "date_attr": date_attr,
+                    "date_regex": date_regex,
+                    "summary": summary_sel,
+                    "content": content_sel,
+                    "pagination": pagination,
+                }
+            })
+
+        except Exception as e:
+            logger.error("Auto-detect failed: %s", e)
+            return JSONResponse({"detail": f"探测失败: {str(e)}"}, status_code=400)
+
     @app.post("/api/sources")
     async def add_source(data: dict = Body(...)):
         try:
@@ -197,6 +344,7 @@ def create_app(config: dict) -> FastAPI:
 
     @app.post("/api/trigger/collect")
     async def trigger_collect():
+        logger.info("Web trigger: collect")
         def _run():
             lookback = config.get("scraping", {}).get("lookback_days", 1)
             for source in config.get("sources", []):
@@ -217,6 +365,7 @@ def create_app(config: dict) -> FastAPI:
 
     @app.post("/api/trigger/process")
     async def trigger_process():
+        logger.info("Web trigger: process")
         def _run():
             pipeline = ProcessingPipeline(config, db)
             pipeline.process_pending()
@@ -225,6 +374,7 @@ def create_app(config: dict) -> FastAPI:
 
     @app.post("/api/trigger/report")
     async def trigger_report():
+        logger.info("Web trigger: report")
         def _run():
             reporter = DigestReporter(config, db)
             reporter.generate()
@@ -233,6 +383,7 @@ def create_app(config: dict) -> FastAPI:
 
     @app.post("/api/trigger/run")
     async def trigger_run():
+        logger.info("Web trigger: run (full pipeline)")
         def _run():
             lookback = config.get("scraping", {}).get("lookback_days", 1)
             for source in config.get("sources", []):
@@ -255,6 +406,7 @@ def create_app(config: dict) -> FastAPI:
 
     @app.post("/api/trigger/backfill")
     async def trigger_backfill():
+        logger.info("Web trigger: backfill (since 2026-05-01)")
         def _run():
             since_date = "2026-05-01"
             for source in config.get("sources", []):
