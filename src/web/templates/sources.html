@@ -6,14 +6,14 @@
 
 <div style="margin-bottom:16px;">
     <button class="btn btn-primary" onclick="showAddForm()" id="add-btn">+ 添加来源</button>
-    <span style="margin-left:12px;color:var(--text-secondary);font-size:13px;">只需填写网站首页，点击「自动探测」一键识别选择器</span>
 </div>
 
-<div id="auto-detect-section" style="display:none;margin-bottom:16px;" class="card">
-    <h3 style="margin-bottom:10px;">自动探测</h3>
+<div class="card" style="margin-bottom:20px;">
+    <h3 style="margin-bottom:10px;">&#128269; 自动探测</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:10px;">只需粘贴网站首页 URL，即可自动识别选择器</p>
     <div style="display:flex;gap:10px;align-items:center;">
         <input type="text" id="detect-url" placeholder="输入新闻列表页 URL..." style="flex:1;"/>
-        <button class="btn btn-primary" onclick="autoDetect()" id="detect-btn">自动探测</button>
+        <button class="btn btn-primary" onclick="autoDetect()" id="detect-btn">开始探测</button>
     </div>
     <div id="detect-result" style="margin-top:10px;font-size:13px;"></div>
 </div>
@@ -68,14 +68,8 @@
 {% endblock %}
 {% block scripts %}
 <script>
-function showAddForm() {
-    document.getElementById('add-form').style.display = 'block';
-    document.getElementById('auto-detect-section').style.display = 'block';
-}
-function hideAddForm() {
-    document.getElementById('add-form').style.display = 'none';
-    document.getElementById('auto-detect-section').style.display = 'none';
-}
+function showAddForm() { document.getElementById('add-form').style.display = 'block'; }
+function hideAddForm() { document.getElementById('add-form').style.display = 'none'; }
 
 async function autoDetect() {
     const url = document.getElementById('detect-url').value.trim();
