@@ -1,0 +1,68 @@
+# ==================== 新闻源配置 ====================
+sources:
+  - name: "Air Cargo News"
+    base_url: "https://www.aircargonews.net"
+    list_url: "https://www.aircargonews.net/"
+    enabled: true
+    selectors:
+      list_container: "article.summary"
+      title: "span.post-title"
+      link: "a"
+      date: "time.pubdate"
+      date_attr: "datetime"
+      summary: "p.excerpt"
+    article_selector:
+      content: "div.entry-content"
+    pagination:
+      pattern: "/page/{page}/"
+      start: 1
+
+  - name: "Airfreight News"
+    base_url: "https://airfreight.news"
+    list_url: "https://airfreight.news/"
+    enabled: true
+    selectors:
+      list_container: "div.media.mb-3.clickbox"
+      title: ".media-title a"
+      link: ".media-title a"
+      date: ".small"
+      date_attr: "text"
+      date_regex: "\\|\\s*(.+)$"
+      summary: ""
+    article_selector:
+      content: "div.article-content, article, div.content"
+    pagination:
+      pattern: ""
+      start: 1
+
+# ==================== LLM 配置 ====================
+llm:
+  provider: "deepseek"
+  model: "deepseek-chat"
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  temperature: 0.3
+  max_tokens: 4096
+  batch_size: 5
+
+# ==================== 调度配置 ====================
+schedule:
+  enabled: true
+  time: "23:00"
+  timezone: "Asia/Shanghai"
+
+# ==================== 输出配置 ====================
+output:
+  dir: "./output"
+  filename_pattern: "daily_{date}.html"
+  keep_days: 30
+
+# ==================== 抓取配置 ====================
+scraping:
+  request_interval: 2
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"
+  timeout: 30
+  max_retries: 3
+  lookback_days: 1

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}设置 - 空运新闻速递{% endblock %}
+{% block content %}
+
+<h2 style="margin-bottom:20px;">设置</h2>
+
+<div class="card" style="max-width:600px;">
+    <h3 style="margin-bottom:16px;">Deepseek API Key</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+        API Key 保存在本地 <code>data/api_key.json</code>，用于调用 Deepseek 模型进行新闻翻译和摘要。
+    </p>
+
+    <div style="margin-bottom:16px;">
+        <label style="font-weight:600;display:block;margin-bottom:6px;">API Key</label>
+        <input type="password" id="api-key-input" placeholder="sk-..." style="width:100%;font-family:monospace;" value="{{ masked_key }}"/>
+        <button class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="toggleVisibility()" id="toggle-btn">显示</button>
+    </div>
+
+    <div id="status-badge" style="margin-bottom:16px;font-size:13px;">
+        {% if has_key %}
+        <span style="color:#2e7d32;">&#10004; 已配置 ({{ key_prefix }}...{{ key_suffix }})</span>
+        {% else %}
+        <span style="color:#c62828;">&#10008; 未配置 — 请设置 Key 或通过环境变量 <code>DEEPSEEK_API_KEY</code></span>
+        {% endif %}
+    </div>
+
+    <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" onclick="saveKey()" id="save-btn">保存</button>
+        <button class="btn btn-outline" onclick="loadKey()">重新加载</button>
+    </div>
+    <div id="msg" style="margin-top:12px;font-size:13px;"></div>
+</div>
+
+<div class="card" style="max-width:600px;margin-top:24px;">
+    <h3 style="margin-bottom:12px;">配置说明</h3>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.8;">
+        <p><strong>优先级：</strong>Web 页面设置的 Key > 环境变量 <code>DEEPSEEK_API_KEY</code> > config.yaml 中的 <code>api_key</code></p>
+        <p><strong>模型：</strong>deepseek-chat (在 config.yaml 中配置)</p>
+        <p><strong>费用：</strong>Deepseek API 按 token 计费，每条新闻约消耗 2000-4000 token</p>
+        <p><strong>获取 Key：</strong>访问 <a href="https://platform.deepseek.com/api_keys" target="_blank">platform.deepseek.com</a> 创建</p>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let visible = false;
+function toggleVisibility() {
+    visible = !visible;
+    document.getElementById('api-key-input').type = visible ? 'text' : 'password';
+    document.getElementById('toggle-btn').textContent = visible ? '隐藏' : '显示';
+}
+
+async function loadKey() {
+    try {
+        const resp = await fetch('/api/settings/api-key');
+        const data = await resp.json();
+        document.getElementById('api-key-input').value = data.masked_key || '';
+        document.getElementById('msg').innerHTML = '<span style="color:#2e7d32;">已加载</span>';
+    } catch(e) {
+        document.getElementById('msg').innerHTML = '<span style="color:#c62828;">加载失败</span>';
+    }
+}
+
+async function saveKey() {
+    const btn = document.getElementById('save-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>保存中';
+    btn.disabled = true;
+    try {
+        const key = document.getElementById('api-key-input').value.trim();
+        const resp = await fetch('/api/settings/api-key', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({api_key: key})
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            document.getElementById('msg').innerHTML = '<span style="color:#2e7d32;">&#10004; ' + data.message + '</span>';
+            location.reload();
+        } else {
+            document.getElementById('msg').innerHTML = '<span style="color:#c62828;">' + data.detail + '</span>';
+        }
+    } catch(e) {
+        document.getElementById('msg').innerHTML = '<span style="color:#c62828;">保存失败: ' + e.message + '</span>';
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

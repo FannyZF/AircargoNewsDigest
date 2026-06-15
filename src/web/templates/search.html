@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}新闻搜索 - 空运新闻速递{% endblock %}
+{% block content %}
+
+<h2 style="margin-bottom:16px;">新闻搜索</h2>
+
+<div class="toolbar">
+    <input type="text" id="search-input" placeholder="搜索关键词..." style="flex:1;min-width:200px;"/>
+    <select id="category-filter">
+        <option value="">全部分类</option>
+        <option value="1">运价</option>
+        <option value="2">运力</option>
+        <option value="3">航线</option>
+        <option value="4">政策法规</option>
+        <option value="5">企业动态</option>
+        <option value="6">市场报告</option>
+        <option value="7">技术与可持续</option>
+        <option value="8">其他</option>
+    </select>
+    <select id="china-filter">
+        <option value="">中国关联度</option>
+        <option value="high">★ 中国相关</option>
+        <option value="medium">☆ 亚太相关</option>
+        <option value="low">低关联</option>
+        <option value="none">无关</option>
+    </select>
+    <button class="btn btn-primary" id="search-btn">搜索</button>
+</div>
+
+<div id="results-count" style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;"></div>
+<div id="results-container"></div>
+<div id="pagination" class="pagination"></div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let currentPage = 1;
+let currentQuery = '';
+
+async function doSearch(page) {
+    const q = document.getElementById('search-input').value.trim();
+    const category = document.getElementById('category-filter').value;
+    const china = document.getElementById('china-filter').value;
+    currentQuery = q;
+    currentPage = page;
+    const btn = document.getElementById('search-btn');
+    btn.innerHTML = '<span class="spinner"></span>搜索中';
+    btn.disabled = true;
+    try {
+        const params = new URLSearchParams({q, category, china, page, size: 20});
+        const resp = await fetch('/api/search?' + params);
+        const data = await resp.json();
+        renderResults(data);
+    } finally {
+        btn.innerHTML = '搜索';
+        btn.disabled = false;
+    }
+}
+
+function renderResults(data) {
+    const cnt = document.getElementById('results-count');
+    cnt.textContent = `共 ${data.total} 条结果`;
+    const container = document.getElementById('results-container');
+    if (data.results.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>没有找到匹配的新闻</p></div>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+    container.innerHTML = data.results.map(r => `
+        <div class="card ${r.china_relevance === 'high' ? 'china-high' : ''}">
+            <div class="card-title"><a href="${r.url}" target="_blank">${r.translated_title || r.title}</a></div>
+            <div class="card-meta">
+                <span class="badge badge-source">${r.source}</span>
+                <span class="badge badge-cat">${r.category_label || '其他'}</span>
+                ${r.china_label ? `<span class="badge ${r.china_relevance === 'high' ? 'badge-china-high' : 'badge-china-medium'}">${r.china_label}</span>` : ''}
+                <span>${r.published_at || ''}</span>
+            </div>
+            <div class="card-summary">${r.summary || ''}</div>
+            ${r.keywords && r.keywords.length ? '<div class="card-tags">' + r.keywords.map(k => `<span class="tag">${k}</span>`).join('') + '</div>' : ''}
+        </div>
+    `).join('');
+    const pg = document.getElementById('pagination');
+    let html = '';
+    const totalPages = data.pages || 1;
+    for (let p = 1; p <= totalPages; p++) {
+        html += `<button class="${p === data.page ? 'active' : ''}" onclick="doSearch(${p})">${p}</button>`;
+    }
+    pg.innerHTML = html;
+}
+
+document.getElementById('search-btn').addEventListener('click', () => doSearch(1));
+document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(1); });
+doSearch(1);
+</script>
+{% endblock %}

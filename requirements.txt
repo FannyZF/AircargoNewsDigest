@@ -1,0 +1,10 @@
+httpx[http2]
+beautifulsoup4
+lxml
+pyyaml
+openai
+apscheduler
+jinja2
+fastapi
+uvicorn
+

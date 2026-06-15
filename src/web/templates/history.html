@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}历史日报 - 空运新闻速递{% endblock %}
+{% block content %}
+
+<h2 style="margin-bottom:20px;">历史日报</h2>
+
+{% if digest_files %}
+<div style="display:grid;gap:10px;">
+{% for f in digest_files %}
+<div class="card" style="display:flex;justify-content:space-between;align-items:center;border-left:3px solid var(--accent);">
+    <div>
+        <span style="font-weight:600;">{{ f.display }}</span>
+        <span style="color:var(--text-secondary);font-size:12px;margin-left:12px;">{{ f.filename }}</span>
+    </div>
+    <a href="/digests/{{ f.filename }}" target="_blank" class="btn btn-outline btn-sm">查看</a>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p style="font-size:18px;">暂无历史日报</p>
+    <p>运行 <code>python -m src.main run</code> 生成第一份日报</p>
+</div>
+{% endif %}
+
+{% endblock %}

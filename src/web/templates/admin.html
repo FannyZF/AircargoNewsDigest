@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}管理后台 - 空运新闻速递{% endblock %}
+{% block content %}
+
+<h2 style="margin-bottom:20px;">管理后台</h2>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">总新闻数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.pending }}</div>
+        <div class="stat-label">待处理</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.processed }}</div>
+        <div class="stat-label">已处理</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.failed }}</div>
+        <div class="stat-label">失败</div>
+    </div>
+</div>
+
+<div class="section-title">操作</div>
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+    <button class="btn btn-outline" onclick="trigger('collect')" id="btn-collect">抓取新闻</button>
+    <button class="btn btn-outline" onclick="trigger('backfill')" id="btn-backfill">历史回溯 (5/1起)</button>
+    <button class="btn btn-outline" onclick="trigger('process')" id="btn-process">LLM 处理</button>
+    <button class="btn btn-outline" onclick="trigger('report')" id="btn-report">生成日报</button>
+    <button class="btn btn-primary" onclick="trigger('run')" id="btn-run">一键全流程</button>
+</div>
+
+<div class="section-title">命令行</div>
+<div class="card" style="font-family:monospace;font-size:13px;line-height:2;background:#1a1a2e;color:#e0e0e0;">
+<span style="color:#64b5f6;"># 完整流程 (抓取 → LLM处理 → 生成日报)</span><br>
+python -m src.main run<br><br>
+<span style="color:#64b5f6;"># 定时调度 (每天08:00自动运行)</span><br>
+python -m src.main schedule<br><br>
+<span style="color:#64b5f6;"># 启动 Web 服务</span><br>
+python -m src.main web
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + type;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3000);
+}
+async function trigger(action) {
+    const btn = document.getElementById('btn-' + action);
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>运行中...';
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/trigger/' + action, {method:'POST'});
+        const data = await resp.json();
+        showToast(data.message, 'success');
+    } catch(e) {
+        showToast('操作失败: ' + e.message, 'error');
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+        setTimeout(() => location.reload(), 2000);
+    }
+}
+</script>
+{% endblock %}
