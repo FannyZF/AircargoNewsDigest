@@ -18,9 +18,9 @@
 {% endblock %}
 {% block content %}
 
-<h2 style="margin-bottom:4px;">空运新闻速递</h2>
-<div style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;">
-    {{ date_display }} | 共 <span id="total-count">{{ total_count }}</span> 条新闻 | 来源: {{ sources }}
+<div class="page-header">
+    <h2>空运新闻速递</h2>
+    <div class="subtitle">{{ date_display }} | 共 <span id="total-count">{{ total_count }}</span> 条新闻 | 来源: {{ sources }}</div>
 </div>
 
 <div id="active-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;min-height:24px;"></div>
@@ -143,7 +143,7 @@ function buildSidebar() {
     Object.keys(srcCounts).sort().forEach(function(s) {
         var count = srcCounts[s];
         var cls = activeSource === s ? 'active' : '';
-        srcHtml += '<a href="#" class="' + cls + '" onclick="toggleSource(\'' + s.replace(/'/g,"\\'") + '\');return false;">' + s + ' (' + count + ')</a>';
+        srcHtml += '<a href="#" class="' + cls + '" onclick="toggleSource(\'' + s.replace(/'/g,"\\'") + '\');return false;">' + s + ' <span class="count">' + count + '</span></a>';
     });
     document.getElementById('filter-sources').innerHTML = srcHtml;
 
@@ -158,7 +158,7 @@ function buildSidebar() {
     CATEGORY_ORDER.forEach(function(c) {
         var count = catCounts[c[0]] || 0;
         var cls = activeCategory === c[0] ? 'active' : '';
-        catHtml += '<a href="#" class="' + cls + '" onclick="toggleCategory(\'' + c[0] + '\');return false;">' + c[1] + ' (' + count + ')</a>';
+        catHtml += '<a href="#" class="' + cls + '" onclick="toggleCategory(\'' + c[0] + '\');return false;">' + c[1] + ' <span class="count">' + count + '</span></a>';
     });
     document.getElementById('filter-categories').innerHTML = catHtml;
 
@@ -173,7 +173,7 @@ function buildSidebar() {
     REGION_ORDER.forEach(function(r) {
         var count = regCounts[r] || 0;
         var cls = activeRegion === r ? 'active' : '';
-        regHtml += '<a href="#" class="' + cls + '" onclick="toggleRegion(\'' + r + '\');return false;">' + REGION_LABELS[r] + ' (' + count + ')</a>';
+        regHtml += '<a href="#" class="' + cls + '" onclick="toggleRegion(\'' + r + '\');return false;">' + REGION_LABELS[r] + ' <span class="count">' + count + '</span></a>';
     });
     document.getElementById('filter-regions').innerHTML = regHtml;
 }
