@@ -16,6 +16,7 @@ from src.processor.pipeline import ProcessingPipeline
 from src.reporter.digest import DigestReporter
 from src.utils.logger import setup_logger
 from src.utils.key_store import load_api_key, save_api_key
+from src.utils.schedule_store import load_schedule, save_schedule
 
 logger = setup_logger("web")
 
@@ -315,9 +316,11 @@ def create_app(config: dict) -> FastAPI:
         masked = ""
         if key and len(key) > 10:
             masked = key[:6] + "*" * (len(key) - 10) + key[-4:]
+        sched = load_schedule()
         return render_template("settings.html", {
             "request": request, "has_key": bool(key), "masked_key": masked,
             "key_prefix": key[:6] if key else "", "key_suffix": key[-4:] if key else "",
+            "schedule_time": sched.get("time", "23:00"),
         })
 
     @app.get("/api/settings/api-key")
@@ -336,6 +339,14 @@ def create_app(config: dict) -> FastAPI:
             return JSONResponse({"detail": "API Key 格式无效，应以 sk- 开头"}, status_code=400)
         save_api_key(key)
         return JSONResponse({"status": "ok", "message": f"API Key 已保存 (sk-...{key[-4:]})"})
+
+    @app.post("/api/settings/schedule")
+    async def set_schedule(data: dict = Body(...)):
+        time_str = data.get("time", "").strip()
+        if not time_str or ":" not in time_str:
+            return JSONResponse({"detail": "时间格式无效，请使用 HH:MM"}, status_code=400)
+        save_schedule(time_str)
+        return JSONResponse({"status": "ok", "message": f"定时已更新: 每天 {time_str} (重启服务后生效)"})
 
     @app.get("/admin", response_class=HTMLResponse)
     async def admin(request: Request):

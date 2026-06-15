@@ -31,17 +31,7 @@
     <button class="btn btn-outline" onclick="trigger('report')" id="btn-report">生成日报</button>
     <button class="btn btn-primary" onclick="trigger('run')" id="btn-run">一键全流程</button>
 </div>
-
-<div class="section-title">命令行</div>
-<div class="card" style="font-family:monospace;font-size:13px;line-height:2;background:#1a1a2e;color:#e0e0e0;">
-<span style="color:#64b5f6;"># 完整流程 (抓取 → LLM处理 → 生成日报)</span><br>
-python -m src.main run<br><br>
-<span style="color:#64b5f6;"># 定时调度 (每天08:00自动运行)</span><br>
-python -m src.main schedule<br><br>
-<span style="color:#64b5f6;"># 启动 Web 服务 (端口 18903)</span><br>
-python -m src.main web
 </div>
-
 {% endblock %}
 {% block scripts %}
 <script>

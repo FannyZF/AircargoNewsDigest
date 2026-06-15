@@ -1,20 +1,20 @@
 import signal
-from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from src.utils.logger import setup_logger
+from src.utils.schedule_store import get_schedule_config
 
 logger = setup_logger("scheduler")
 
 
 class Scheduler:
     def __init__(self, config: dict, job_func):
-        schedule_cfg = config.get("schedule", {})
-        self.enabled = schedule_cfg.get("enabled", True)
-        self.time = schedule_cfg.get("time", "08:00")
-        self.timezone = schedule_cfg.get("timezone", "Asia/Shanghai")
+        sched_cfg = get_schedule_config(config)
+        self.enabled = sched_cfg.get("enabled", True)
+        self.time = sched_cfg.get("time", "23:00")
+        self.timezone = sched_cfg.get("timezone", "Asia/Shanghai")
 
         hour, minute = self.time.split(":")
         self.scheduler = BackgroundScheduler(timezone=self.timezone)

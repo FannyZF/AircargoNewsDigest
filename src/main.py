@@ -264,7 +264,9 @@ def cmd_web(config: dict, _args):
 
     scheduler = Scheduler(config, daily_job)
     scheduler.start_background()
-    logger.info("Daily scheduler started, runs at %s %s", config.get("schedule", {}).get("time", "23:00"), config.get("schedule", {}).get("timezone", "Asia/Shanghai"))
+    from src.utils.schedule_store import get_schedule_config
+    sched_cfg = get_schedule_config(config)
+    logger.info("Daily scheduler started, runs at %s %s", sched_cfg["time"], sched_cfg["timezone"])
 
     logger.info("Starting web server at http://0.0.0.0:%d", port)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
