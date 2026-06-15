@@ -2,20 +2,28 @@
 {% block title %}空运新闻速递 - {{ date_display }}{% endblock %}
 {% block sidebar %}
 <aside class="sidebar" id="sidebar">
-    <div class="sidebar-title">分类导航</div>
-    {% for cat_id, cat_name, cat_items in categories %}
-    {% if cat_items %}
-    <a href="#cat-{{ cat_id }}">{{ cat_name }} ({{ cat_items|length }})</a>
-    {% endif %}
-    {% endfor %}
+    <div class="sidebar-section">
+        <div class="sidebar-title">来源</div>
+        <div id="filter-sources"></div>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">内容分类</div>
+        <div id="filter-categories"></div>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">区域</div>
+        <div id="filter-regions"></div>
+    </div>
 </aside>
 {% endblock %}
 {% block content %}
 
 <h2 style="margin-bottom:4px;">空运新闻速递</h2>
-<div style="color:var(--text-secondary);font-size:14px;margin-bottom:24px;">
-    {{ date_display }} | 共收录 {{ total_count }} 条新闻 | 来源: {{ sources }}
+<div style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;">
+    {{ date_display }} | 共 <span id="total-count">{{ total_count }}</span> 条新闻 | 来源: {{ sources }}
 </div>
+
+<div id="active-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;min-height:24px;"></div>
 
 {% if not today_has_digest %}
 <div class="empty-state">
@@ -23,7 +31,7 @@
     <p>请在<a href="/admin">管理页面</a>手动触发，或等待每日 23:00 自动更新</p>
     {% if recent_items %}
     <div style="margin-top:32px;text-align:left;">
-        <div class="section-title">最近新闻 ({{ recent_items|length }} 条)</div>
+        <div class="section-title">最近新闻</div>
         {% for news in recent_items[:10] %}
         <div class="card">
             <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
@@ -32,7 +40,7 @@
                 {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
                 {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
             </div>
-            <div class="card-summary">{{ news.summary[:200] }}{% if news.summary|length > 200 %}...{% endif %}</div>
+            <div class="card-summary">{{ news.summary[:200] }}</div>
         </div>
         {% endfor %}
     </div>
@@ -40,48 +48,203 @@
 </div>
 {% else %}
 
-{% for cat_id, cat_name, cat_items in categories %}
-{% if cat_items %}
-<div class="section-title" id="cat-{{ cat_id }}">{{ cat_name }} ({{ cat_items|length }})</div>
-{% for news in cat_items %}
-<div class="card">
-    <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
-    <div class="card-meta">
-        <span class="badge badge-source">{{ news.source }}</span>
-        {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
-        {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
-    </div>
-    <div class="card-summary">{{ news.summary }}</div>
-    <div class="card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
-    <button class="expand-btn" onclick="toggleBody(this)">展开全文 ▼</button>
-    <div class="card-body">{{ news.translated_text or news.original_text }}</div>
-</div>
-{% endfor %}
-{% endif %}
-{% endfor %}
-
-{% if all_keywords %}
-<div class="tag-cloud">
-    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;">关键词云</div>
-    {% for kw, size in all_keywords %}<span class="tag" style="font-size:{{ size }}px;">{{ kw }}</span>{% endfor %}
-</div>
-{% endif %}
+<div id="cards-container"></div>
 
 {% endif %}
 {% endblock %}
 {% block scripts %}
 <script>
-function toggleBody(btn) {
+// Item data from server
+const ITEMS = [
+{% for news in items %}
+{
+    id: "{{ news.id }}",
+    url: "{{ news.url }}",
+    title: "{{ news.title | e }}",
+    translated_title: "{{ news.translated_title | e }}",
+    translated_text: "{{ news.translated_text | e }}",
+    original_text: "{{ news.original_text | e }}",
+    summary: "{{ news.summary | e }}",
+    source: "{{ news.source }}",
+    categories: {{ news.categories | safe }},
+    regions: {{ news.regions | safe }},
+    keywords: {{ news.keywords | safe }},
+    published_at: "{{ news.published_at }}",
+    category_labels: {{ news.get_category_labels() | tojson }},
+    region_labels: {{ news.get_region_labels() | tojson }}
+}{% if not loop.last %},{% endif %}
+{% endfor %}
+];
+
+const CATEGORY_LABELS = {{ CATEGORY_LABELS | tojson }};
+const REGION_LABELS = {{ REGION_LABELS | tojson }};
+const CATEGORY_ORDER = [["1","运价"],["2","运力"],["3","航线"],["4","政策法规"],["5","企业动态"],["6","市场报告"],["7","技术与可持续"],["8","其他"]];
+const REGION_ORDER = ["China","Asia","Europe","NorthAmerica","SouthAmerica","MiddleEast","Africa","Oceania","Global"];
+
+// Active filters
+let activeSource = null;
+let activeCategory = null;
+let activeRegion = null;
+
+function getFilteredItems() {
+    return ITEMS.filter(function(item) {
+        if (activeSource && item.source !== activeSource) return false;
+        if (activeCategory && item.categories.indexOf(activeCategory) === -1) return false;
+        if (activeRegion && item.regions.indexOf(activeRegion) === -1) return false;
+        return true;
+    });
+}
+
+function countBy(field, value, items) {
+    if (field === 'source') return items.filter(function(i) { return i.source === value; }).length;
+    if (field === 'category') return items.filter(function(i) { return i.categories.indexOf(value) !== -1; }).length;
+    if (field === 'region') return items.filter(function(i) { return i.regions.indexOf(value) !== -1; }).length;
+    return 0;
+}
+
+function buildSidebar() {
+    var allItems = getFilteredItems();
+    var pool = activeSource || activeCategory || activeRegion ? ITEMS : allItems;
+
+    // Sources
+    var sources = {};
+    ITEMS.forEach(function(i) { sources[i.source] = (sources[i.source] || 0) + 1; });
+    var srcKeys = Object.keys(sources).sort();
+    var srcHtml = '';
+    srcKeys.forEach(function(s) {
+        var count = activeSource ? (s === activeSource ? sources[s] : countBy('source', s, pool)) : sources[s];
+        var cls = activeSource === s ? 'active' : '';
+        srcHtml += '<a href="#" class="' + cls + '" data-source="' + s + '" onclick="toggleSource(\'' + s.replace(/'/g, "\\'") + '\');return false;">' + s + ' (' + count + ')</a>';
+    });
+    document.getElementById('filter-sources').innerHTML = srcHtml;
+
+    // Categories
+    var catHtml = '';
+    CATEGORY_ORDER.forEach(function(c) {
+        var totalInPool = countBy('category', c[0], pool);
+        if (totalInPool === 0 && !activeCategory) return;
+        var count = activeCategory ? (c[0] === activeCategory ? countBy('category', c[0], ITEMS) : totalInPool) : totalInPool;
+        if (count === 0 && c[0] !== activeCategory) return;
+        var cls = activeCategory === c[0] ? 'active' : '';
+        catHtml += '<a href="#" class="' + cls + '" data-cat="' + c[0] + '" onclick="toggleCategory(\'' + c[0] + '\');return false;">' + c[1] + ' (' + count + ')</a>';
+    });
+    document.getElementById('filter-categories').innerHTML = catHtml;
+
+    // Regions
+    var regHtml = '';
+    REGION_ORDER.forEach(function(r) {
+        var totalInPool = countBy('region', r, pool);
+        if (totalInPool === 0 && !activeRegion) return;
+        var count = activeRegion ? (r === activeRegion ? countBy('region', r, ITEMS) : totalInPool) : totalInPool;
+        if (count === 0 && r !== activeRegion) return;
+        var cls = activeRegion === r ? 'active' : '';
+        regHtml += '<a href="#" class="' + cls + '" data-reg="' + r + '" onclick="toggleRegion(\'' + r + '\');return false;">' + REGION_LABELS[r] + ' (' + count + ')</a>';
+    });
+    document.getElementById('filter-regions').innerHTML = regHtml;
+}
+
+function toggleSource(src) {
+    activeSource = activeSource === src ? null : src;
+    renderAll();
+}
+
+function toggleCategory(cat) {
+    activeCategory = activeCategory === cat ? null : cat;
+    renderAll();
+}
+
+function toggleRegion(reg) {
+    activeRegion = activeRegion === reg ? null : reg;
+    renderAll();
+}
+
+function renderActiveFilters() {
+    var html = '';
+    if (activeSource) {
+        html += '<span class="filter-tag">来源: ' + activeSource + ' <a href="#" onclick="toggleSource(\'' + activeSource.replace(/'/g, "\\'") + '\');return false;" style="margin-left:4px;color:var(--text);text-decoration:none;font-weight:bold;">&times;</a></span>';
+    }
+    if (activeCategory) {
+        html += '<span class="filter-tag">分类: ' + CATEGORY_LABELS[activeCategory] + ' <a href="#" onclick="toggleCategory(\'' + activeCategory + '\');return false;" style="margin-left:4px;color:var(--text);text-decoration:none;font-weight:bold;">&times;</a></span>';
+    }
+    if (activeRegion) {
+        html += '<span class="filter-tag">区域: ' + REGION_LABELS[activeRegion] + ' <a href="#" onclick="toggleRegion(\'' + activeRegion + '\');return false;" style="margin-left:4px;color:var(--text);text-decoration:none;font-weight:bold;">&times;</a></span>';
+    }
+    if (activeSource || activeCategory || activeRegion) {
+        html += '<a href="#" onclick="clearAllFilters();return false;" style="font-size:12px;color:var(--src-purple);text-decoration:underline;line-height:24px;">清除全部</a>';
+    }
+    document.getElementById('active-filters').innerHTML = html;
+}
+
+function clearAllFilters() {
+    activeSource = null;
+    activeCategory = null;
+    activeRegion = null;
+    renderAll();
+}
+
+function renderCards() {
+    var items = getFilteredItems();
+    document.getElementById('total-count').textContent = items.length;
+    var container = document.getElementById('cards-container');
+    if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>没有匹配的新闻</p></div>';
+        return;
+    }
+    var grouped = {};
+    CATEGORY_ORDER.forEach(function(c) {
+        var catItems = items.filter(function(i) { return i.categories.indexOf(c[0]) !== -1; });
+        if (catItems.length > 0) grouped[c[0]] = {name: c[1], items: catItems};
+    });
+    var html = '';
+    Object.keys(grouped).forEach(function(catId) {
+        var g = grouped[catId];
+        html += '<div class="section-title" id="cat-' + catId + '">' + g.name + ' (' + g.items.length + ')</div>';
+        g.items.forEach(function(news) {
+            var catBadges = news.category_labels.map(function(l) { return '<span class="badge badge-cat">' + l + '</span>'; }).join('');
+            var regionBadges = news.regions.map(function(r) {
+                var cls = r === 'China' ? 'badge-china' : 'badge-region';
+                return '<span class="badge ' + cls + '">' + REGION_LABELS[r] + '</span>';
+            }).join('');
+            var tags = news.keywords.map(function(k) { return '<span class="tag">' + k + '</span>'; }).join('');
+            html += '<div class="card">' +
+                '<div class="card-title"><a href="' + news.url + '" target="_blank">' + (news.translated_title || news.title) + '</a></div>' +
+                '<div class="card-meta">' +
+                '<span class="badge badge-source">' + news.source + '</span>' +
+                catBadges + regionBadges +
+                '</div>' +
+                '<div class="card-summary">' + (news.summary || '') + '</div>' +
+                (tags ? '<div class="card-tags">' + tags + '</div>' : '') +
+                '<button class="expand-btn" onclick="toggleCardBody(this)">展开全文 ▼</button>' +
+                '<div class="card-body">' + (news.translated_text || news.original_text) + '</div>' +
+                '</div>';
+        });
+    });
+    container.innerHTML = html;
+}
+
+function toggleCardBody(btn) {
     var body = btn.nextElementSibling;
     var expanded = body.classList.contains('show');
     body.classList.toggle('show');
     btn.innerHTML = expanded ? '展开全文 ▼' : '收起全文 ▲';
 }
-document.querySelectorAll('.sidebar a').forEach(function(link) {
-    link.addEventListener('click', function() {
-        document.querySelectorAll('.sidebar a').forEach(function(l) { l.classList.remove('active'); });
-        this.classList.add('active');
-    });
-});
+
+function renderAll() {
+    buildSidebar();
+    renderActiveFilters();
+    renderCards();
+}
+
+renderAll();
 </script>
+
+<style>
+.sidebar-section { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
+.sidebar-section:last-child { border-bottom: none; }
+.filter-tag {
+    display: inline-flex; align-items: center;
+    background: var(--src-bg); color: var(--src-purple);
+    font-size: 12px; padding: 3px 10px; border-radius: 12px;
+}
+</style>
 {% endblock %}
