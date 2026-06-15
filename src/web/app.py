@@ -446,8 +446,15 @@ def _get_recent_news(db: Database, limit: int = 30) -> list:
 
 def _build_categories(items: list) -> list:
     cats = []
+    assigned = set()
     for cat_id, cat_name in CATEGORY_ORDER:
-        cat_items = [i for i in items if cat_id in i.get_categories_list()]
+        cat_items = []
+        for i in items:
+            if i.id in assigned:
+                continue
+            if cat_id in i.get_categories_list():
+                cat_items.append(i)
+                assigned.add(i.id)
         cats.append((cat_id, cat_name, cat_items))
     return cats
 
