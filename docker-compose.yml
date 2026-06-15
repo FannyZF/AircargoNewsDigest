@@ -1,0 +1,16 @@
+services:
+  aircargo-news:
+    build: .
+    container_name: aircargo-news
+    ports:
+      - "18903:18903"
+    environment:
+      - PORT=18903
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml:ro
+    restart: unless-stopped
