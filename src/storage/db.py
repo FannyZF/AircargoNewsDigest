@@ -121,21 +121,28 @@ class Database:
 
     @staticmethod
     def _row_to_item(row) -> NewsItem:
+        def _get(key, default=""):
+            try:
+                v = row[key]
+                return v if v is not None else default
+            except (KeyError, IndexError):
+                return default
+
         return NewsItem(
-            id=row["id"],
-            url=row["url"],
-            title=row["title"],
-            original_text=row["original_text"] or "",
-            source=row["source"],
-            published_at=row["published_at"] or "",
-            collected_at=row["collected_at"],
-            translated_title=row.get("translated_title") or "",
-            translated_text=row.get("translated_text") or "",
-            summary=row.get("summary") or "",
-            keywords=row.get("keywords") or "[]",
-            categories=row.get("categories") or "[]",
-            regions=row.get("regions") or "[]",
-            status=row.get("status") or "pending",
-            processed_at=row.get("processed_at") or "",
-            error_message=row.get("error_message") or "",
+            id=_get("id"),
+            url=_get("url"),
+            title=_get("title"),
+            original_text=_get("original_text") or "",
+            source=_get("source"),
+            published_at=_get("published_at") or "",
+            collected_at=_get("collected_at"),
+            translated_title=_get("translated_title") or "",
+            translated_text=_get("translated_text") or "",
+            summary=_get("summary") or "",
+            keywords=_get("keywords") or "[]",
+            categories=_get("categories") or "[]",
+            regions=_get("regions") or "[]",
+            status=_get("status") or "pending",
+            processed_at=_get("processed_at") or "",
+            error_message=_get("error_message") or "",
         )

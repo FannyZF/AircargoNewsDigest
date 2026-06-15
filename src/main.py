@@ -245,11 +245,13 @@ def cmd_schedule(config: dict, _args):
 
 def cmd_web(config: dict, _args):
     import uvicorn
+    import os
     from src.web.app import create_app
 
+    port = int(os.environ.get("PORT", "18903"))
     app = create_app(config)
-    logger.info("Starting web server at http://0.0.0.0:18903")
-    uvicorn.run(app, host="0.0.0.0", port=18903, log_level="info")
+    logger.info("Starting web server at http://0.0.0.0:%d", port)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
 def main():
