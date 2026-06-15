@@ -106,21 +106,20 @@ function updateAll() {
     allCards().forEach(function(c) {
         c.style.display = visible.has(c) ? '' : 'none';
     });
-    // show/hide section titles and update counts
+
+    var hasFilter = activeSource || activeCategory || activeRegion;
+
+    // show/hide section titles
     allSections().forEach(function(sec) {
-        var cat = sec.getAttribute('data-cat');
-        var count = visibleCards().filter(function(c) { return getCategories(c).indexOf(cat) !== -1; }).length;
-        if (count > 0) {
-            sec.style.display = '';
-            sec.textContent = CATEGORY_LABELS[cat] + ' (' + count + ')';
-        } else {
-            sec.style.display = 'none';
-        }
+        sec.style.display = hasFilter ? 'none' : '';
     });
+
     var uniqueIds = {};
-    visibleCards().forEach(function(c) {
-        var id = c.getAttribute('data-id');
-        if (id) uniqueIds[id] = true;
+    allCards().forEach(function(c) {
+        if (visible.has(c)) {
+            var id = c.getAttribute('data-id');
+            if (id) uniqueIds[id] = true;
+        }
     });
     document.getElementById('total-count').textContent = Object.keys(uniqueIds).length;
     buildSidebar();
@@ -148,21 +147,31 @@ function buildSidebar() {
     });
     document.getElementById('filter-sources').innerHTML = srcHtml;
 
-    // Categories - allow counting duplicates across categories
+    // Categories - count unique articles per category
+    var catCounts = {};
+    uniqueCards.forEach(function(card) {
+        getCategories(card).forEach(function(cat) {
+            catCounts[cat] = (catCounts[cat]||0) + 1;
+        });
+    });
     var catHtml = '';
     CATEGORY_ORDER.forEach(function(c) {
-        var count = 0;
-        allCards().forEach(function(card) { if (getCategories(card).indexOf(c[0]) !== -1) count++; });
+        var count = catCounts[c[0]] || 0;
         var cls = activeCategory === c[0] ? 'active' : '';
         catHtml += '<a href="#" class="' + cls + '" onclick="toggleCategory(\'' + c[0] + '\');return false;">' + c[1] + ' (' + count + ')</a>';
     });
     document.getElementById('filter-categories').innerHTML = catHtml;
 
-    // Regions - allow counting duplicates across categories
+    // Regions - count unique articles per region
+    var regCounts = {};
+    uniqueCards.forEach(function(card) {
+        getRegions(card).forEach(function(r) {
+            regCounts[r] = (regCounts[r]||0) + 1;
+        });
+    });
     var regHtml = '';
     REGION_ORDER.forEach(function(r) {
-        var count = 0;
-        allCards().forEach(function(card) { if (getRegions(card).indexOf(r) !== -1) count++; });
+        var count = regCounts[r] || 0;
         var cls = activeRegion === r ? 'active' : '';
         regHtml += '<a href="#" class="' + cls + '" onclick="toggleRegion(\'' + r + '\');return false;">' + REGION_LABELS[r] + ' (' + count + ')</a>';
     });
