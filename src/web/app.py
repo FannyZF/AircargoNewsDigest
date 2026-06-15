@@ -213,6 +213,44 @@ def create_app(config: dict) -> FastAPI:
                                     source=item["source"], published_at=item.get("published_at", ""))
                     db.insert_news(news)
         threading.Thread(target=_run, daemon=True).start()
+        return JSONResponse({"status": "started", "message": "新闻抓取已触发，请稍后刷新"})
+
+    @app.post("/api/trigger/process")
+    async def trigger_process():
+        def _run():
+            pipeline = ProcessingPipeline(config, db)
+            pipeline.process_pending()
+        threading.Thread(target=_run, daemon=True).start()
+        return JSONResponse({"status": "started", "message": "LLM 处理已触发，请稍后刷新"})
+
+    @app.post("/api/trigger/report")
+    async def trigger_report():
+        def _run():
+            reporter = DigestReporter(config, db)
+            reporter.generate()
+        threading.Thread(target=_run, daemon=True).start()
+        return JSONResponse({"status": "started", "message": "日报生成已触发，请稍后刷新"})
+
+    @app.post("/api/trigger/run")
+    async def trigger_run():
+        def _run():
+            lookback = config.get("scraping", {}).get("lookback_days", 1)
+            for source in config.get("sources", []):
+                if not source.get("enabled", True):
+                    continue
+                items = scraper.scrape_list(source, lookback_days=lookback)
+                content_sel = source.get("article_selector", {}).get("content", "")
+                for item in items:
+                    if db.url_exists(item["url"]):
+                        continue
+                    body = scraper.scrape_article(item["url"], content_sel) if content_sel else ""
+                    news = NewsItem(url=item["url"], title=item["title"],
+                                    original_text=body or item.get("summary", ""),
+                                    source=item["source"], published_at=item.get("published_at", ""))
+                    db.insert_news(news)
+            ProcessingPipeline(config, db).process_pending()
+            DigestReporter(config, db).generate()
+        threading.Thread(target=_run, daemon=True).start()
         return JSONResponse({"status": "started", "message": "全流程已触发，完成后自动刷新页面"})
 
     @app.post("/api/trigger/backfill")
