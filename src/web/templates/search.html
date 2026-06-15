@@ -8,21 +8,11 @@
     <input type="text" id="search-input" placeholder="搜索关键词..." style="flex:1;min-width:200px;"/>
     <select id="category-filter">
         <option value="">全部分类</option>
-        <option value="1">运价</option>
-        <option value="2">运力</option>
-        <option value="3">航线</option>
-        <option value="4">政策法规</option>
-        <option value="5">企业动态</option>
-        <option value="6">市场报告</option>
-        <option value="7">技术与可持续</option>
-        <option value="8">其他</option>
+        {% for cid, cname in CATEGORY_ORDER %}<option value="{{ cid }}">{{ cname }}</option>{% endfor %}
     </select>
-    <select id="china-filter">
-        <option value="">中国关联度</option>
-        <option value="high">★ 中国相关</option>
-        <option value="medium">☆ 亚太相关</option>
-        <option value="low">低关联</option>
-        <option value="none">无关</option>
+    <select id="region-filter">
+        <option value="">全部区域</option>
+        {% for r in REGION_ORDER %}<option value="{{ r }}">{{ REGION_LABELS[r] }}</option>{% endfor %}
     </select>
     <button class="btn btn-primary" id="search-btn">搜索</button>
 </div>
@@ -35,19 +25,17 @@
 {% block scripts %}
 <script>
 let currentPage = 1;
-let currentQuery = '';
 
 async function doSearch(page) {
     const q = document.getElementById('search-input').value.trim();
     const category = document.getElementById('category-filter').value;
-    const china = document.getElementById('china-filter').value;
-    currentQuery = q;
+    const region = document.getElementById('region-filter').value;
     currentPage = page;
     const btn = document.getElementById('search-btn');
-    btn.innerHTML = '<span class="spinner"></span>搜索中';
+    btn.innerHTML = '<span class="spinner"></span>';
     btn.disabled = true;
     try {
-        const params = new URLSearchParams({q, category, china, page, size: 20});
+        const params = new URLSearchParams({q, category, region, page, size: 20});
         const resp = await fetch('/api/search?' + params);
         const data = await resp.json();
         renderResults(data);
@@ -58,38 +46,41 @@ async function doSearch(page) {
 }
 
 function renderResults(data) {
-    const cnt = document.getElementById('results-count');
-    cnt.textContent = `共 ${data.total} 条结果`;
+    document.getElementById('results-count').textContent = '共 ' + data.total + ' 条结果';
     const container = document.getElementById('results-container');
     if (data.results.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>没有找到匹配的新闻</p></div>';
         document.getElementById('pagination').innerHTML = '';
         return;
     }
-    container.innerHTML = data.results.map(r => `
-        <div class="card ${r.china_relevance === 'high' ? 'china-high' : ''}">
-            <div class="card-title"><a href="${r.url}" target="_blank">${r.translated_title || r.title}</a></div>
-            <div class="card-meta">
-                <span class="badge badge-source">${r.source}</span>
-                <span class="badge badge-cat">${r.category_label || '其他'}</span>
-                ${r.china_label ? `<span class="badge ${r.china_relevance === 'high' ? 'badge-china-high' : 'badge-china-medium'}">${r.china_label}</span>` : ''}
-                <span>${r.published_at || ''}</span>
-            </div>
-            <div class="card-summary">${r.summary || ''}</div>
-            ${r.keywords && r.keywords.length ? '<div class="card-tags">' + r.keywords.map(k => `<span class="tag">${k}</span>`).join('') + '</div>' : ''}
-        </div>
-    `).join('');
+    container.innerHTML = data.results.map(r => {
+        const catBadges = r.category_labels.map(l => '<span class="badge badge-cat">' + l + '</span>').join('');
+        const regionBadges = r.region_list.map(rg => {
+            const cls = rg === 'China' ? 'badge-china' : 'badge-region';
+            const label = r.region_labels[r.region_list.indexOf(rg)] || rg;
+            return '<span class="badge ' + cls + '">' + label + '</span>';
+        }).join('');
+        const tags = (r.keywords || []).map(k => '<span class="tag">' + k + '</span>').join('');
+        return '<div class="card">' +
+            '<div class="card-title"><a href="' + r.url + '" target="_blank">' + (r.translated_title || r.title) + '</a></div>' +
+            '<div class="card-meta">' +
+            '<span class="badge badge-source">' + r.source + '</span>' +
+            catBadges + regionBadges +
+            '<span>' + (r.published_at || '') + '</span></div>' +
+            '<div class="card-summary">' + (r.summary || '') + '</div>' +
+            (tags ? '<div class="card-tags">' + tags + '</div>' : '') +
+            '</div>';
+    }).join('');
     const pg = document.getElementById('pagination');
     let html = '';
-    const totalPages = data.pages || 1;
-    for (let p = 1; p <= totalPages; p++) {
-        html += `<button class="${p === data.page ? 'active' : ''}" onclick="doSearch(${p})">${p}</button>`;
+    for (let p = 1; p <= data.pages; p++) {
+        html += '<button class="' + (p === data.page ? 'active' : '') + '" onclick="doSearch(' + p + ')">' + p + '</button>';
     }
     pg.innerHTML = html;
 }
 
-document.getElementById('search-btn').addEventListener('click', () => doSearch(1));
-document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(1); });
+document.getElementById('search-btn').addEventListener('click', function() { doSearch(1); });
+document.getElementById('search-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(1); });
 doSearch(1);
 </script>
 {% endblock %}

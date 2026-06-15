@@ -38,9 +38,8 @@ class Database:
                     translated_text TEXT,
                     summary TEXT,
                     keywords TEXT,
-                    category TEXT,
-                    china_relevance TEXT,
-                    china_angle TEXT,
+                    categories TEXT DEFAULT '[]',
+                    regions TEXT DEFAULT '[]',
                     status TEXT DEFAULT 'pending',
                     processed_at TEXT,
                     error_message TEXT
@@ -48,8 +47,17 @@ class Database:
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON news(status)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_collected_at ON news(collected_at)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_published_at ON news(published_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_source ON news(source)")
+
+            # migrate old columns if they exist
+            try:
+                conn.execute("ALTER TABLE news ADD COLUMN categories TEXT DEFAULT '[]'")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                conn.execute("ALTER TABLE news ADD COLUMN regions TEXT DEFAULT '[]'")
+            except sqlite3.OperationalError:
+                pass
 
     def url_exists(self, url: str) -> bool:
         with self._conn() as conn:
@@ -61,14 +69,14 @@ class Database:
             conn.execute(
                 """INSERT OR IGNORE INTO news
                    (id, url, title, original_text, source, published_at, collected_at,
-                    translated_title, translated_text, summary, keywords, category,
-                    china_relevance, china_angle, status, processed_at, error_message)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    translated_title, translated_text, summary, keywords,
+                    categories, regions, status, processed_at, error_message)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     item.id, item.url, item.title, item.original_text, item.source,
                     item.published_at, item.collected_at,
                     item.translated_title, item.translated_text, item.summary,
-                    item.keywords, item.category, item.china_relevance, item.china_angle,
+                    item.keywords, item.categories, item.regions,
                     item.status, item.processed_at, item.error_message,
                 ),
             )
@@ -86,12 +94,11 @@ class Database:
             conn.execute(
                 """UPDATE news SET
                    translated_title=?, translated_text=?, summary=?, keywords=?,
-                   category=?, china_relevance=?, china_angle=?,
-                   status=?, processed_at=?, error_message=?
+                   categories=?, regions=?, status=?, processed_at=?, error_message=?
                    WHERE id=?""",
                 (
                     item.translated_title, item.translated_text, item.summary,
-                    item.keywords, item.category, item.china_relevance, item.china_angle,
+                    item.keywords, item.categories, item.regions,
                     item.status, item.processed_at, item.error_message, item.id,
                 ),
             )
@@ -122,14 +129,13 @@ class Database:
             source=row["source"],
             published_at=row["published_at"] or "",
             collected_at=row["collected_at"],
-            translated_title=row["translated_title"] or "",
-            translated_text=row["translated_text"] or "",
-            summary=row["summary"] or "",
-            keywords=row["keywords"] or "[]",
-            category=row["category"] or "",
-            china_relevance=row["china_relevance"] or "",
-            china_angle=row["china_angle"] or "",
-            status=row["status"] or "pending",
-            processed_at=row["processed_at"] or "",
-            error_message=row["error_message"] or "",
+            translated_title=row.get("translated_title") or "",
+            translated_text=row.get("translated_text") or "",
+            summary=row.get("summary") or "",
+            keywords=row.get("keywords") or "[]",
+            categories=row.get("categories") or "[]",
+            regions=row.get("regions") or "[]",
+            status=row.get("status") or "pending",
+            processed_at=row.get("processed_at") or "",
+            error_message=row.get("error_message") or "",
         )

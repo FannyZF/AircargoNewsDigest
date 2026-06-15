@@ -46,10 +46,9 @@ class ProcessingPipeline:
                     item.translated_title = result.get("translated_title", "")
                     item.translated_text = result.get("translated_text", "")
                     item.summary = result.get("summary", "")
-                    item.keywords = json.dumps(result.get("keywords", []), ensure_ascii=False)
-                    item.category = result.get("category", "8")
-                    item.china_relevance = result.get("china_relevance", "low")
-                    item.china_angle = result.get("china_angle", "")
+                    item.keywords = json.dumps(result.get("keywords", [])[:5], ensure_ascii=False)
+                    item.categories = json.dumps(result.get("categories", []), ensure_ascii=False)
+                    item.regions = json.dumps(result.get("regions", []), ensure_ascii=False)
                     item.status = "processed"
                     item.processed_at = datetime.now().isoformat()
                     stats["processed"] += 1

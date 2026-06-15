@@ -1,27 +1,36 @@
 {% extends "base.html" %}
 {% block title %}空运新闻速递 - {{ date_display }}{% endblock %}
+{% block sidebar %}
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">分类导航</div>
+    {% for cat_id, cat_name, cat_items in categories %}
+    {% if cat_items %}
+    <a href="#cat-{{ cat_id }}">{{ cat_name }} ({{ cat_items|length }})</a>
+    {% endif %}
+    {% endfor %}
+</aside>
+{% endblock %}
 {% block content %}
 
 <h2 style="margin-bottom:4px;">空运新闻速递</h2>
 <div style="color:var(--text-secondary);font-size:14px;margin-bottom:24px;">
-    {{ date_display }} | 共收录 {{ total_count }} 条新闻
-    {% if china_count > 0 %}| <span style="color:var(--china-high);">中国相关: {{ china_count }} 条</span>{% endif %}
+    {{ date_display }} | 共收录 {{ total_count }} 条新闻 | 来源: {{ sources }}
 </div>
 
 {% if not today_has_digest %}
 <div class="empty-state">
     <p style="font-size:18px;margin-bottom:8px;">今日日报尚未生成</p>
-    <p>请先运行 <code>python -m src.main run</code> 或在<a href="/admin">管理页面</a>手动触发</p>
+    <p>请在<a href="/admin">管理页面</a>手动触发，或等待每日 23:00 自动更新</p>
     {% if recent_items %}
     <div style="margin-top:32px;text-align:left;">
-        <div class="section-title">最近处理过的新闻 ({{ recent_items|length }} 条)</div>
+        <div class="section-title">最近新闻 ({{ recent_items|length }} 条)</div>
         {% for news in recent_items[:10] %}
-        <div class="card {{ 'china-high' if news.china_relevance == 'high' else '' }}">
+        <div class="card">
             <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
             <div class="card-meta">
                 <span class="badge badge-source">{{ news.source }}</span>
-                <span class="badge badge-cat">{{ news.get_category_label() }}</span>
-                {% if news.china_relevance == 'high' %}<span class="badge badge-china-high">★ 中国相关</span>{% endif %}
+                {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
+                {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
             </div>
             <div class="card-summary">{{ news.summary[:200] }}{% if news.summary|length > 200 %}...{% endif %}</div>
         </div>
@@ -31,36 +40,17 @@
 </div>
 {% else %}
 
-{% if headlines %}
-<div class="section-title">&#9733; 今日头条</div>
-{% for news in headlines %}
-<div class="card highlight {{ 'china-high' if news.china_relevance == 'high' else '' }}">
-    <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
-    <div class="card-meta">
-        <span class="badge badge-source">{{ news.source }}</span>
-        <span class="badge badge-cat">{{ news.get_category_label() }}</span>
-        {% if news.china_relevance == 'high' %}<span class="badge badge-china-high">★ 中国相关</span>{% elif news.china_relevance == 'medium' %}<span class="badge badge-china-medium">☆ 亚太相关</span>{% endif %}
-    </div>
-    {% if news.china_angle %}<div class="china-note">{{ news.china_angle }}</div>{% endif %}
-    <div class="card-summary">{{ news.summary }}</div>
-    <div class="card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
-    <button class="expand-btn" onclick="toggleBody(this)">展开全文 ▼</button>
-    <div class="card-body">{{ news.translated_text or news.original_text }}</div>
-</div>
-{% endfor %}
-{% endif %}
-
 {% for cat_id, cat_name, cat_items in categories %}
 {% if cat_items %}
-<div class="section-title">&#9632; {{ cat_name }} ({{ cat_items|length }})</div>
+<div class="section-title" id="cat-{{ cat_id }}">{{ cat_name }} ({{ cat_items|length }})</div>
 {% for news in cat_items %}
-<div class="card {{ 'china-high' if news.china_relevance == 'high' else '' }}">
+<div class="card">
     <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
     <div class="card-meta">
         <span class="badge badge-source">{{ news.source }}</span>
-        {% if news.china_relevance == 'high' %}<span class="badge badge-china-high">★ 中国相关</span>{% elif news.china_relevance == 'medium' %}<span class="badge badge-china-medium">☆ 亚太相关</span>{% endif %}
+        {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
+        {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
     </div>
-    {% if news.china_angle %}<div class="china-note">{{ news.china_angle }}</div>{% endif %}
     <div class="card-summary">{{ news.summary }}</div>
     <div class="card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
     <button class="expand-btn" onclick="toggleBody(this)">展开全文 ▼</button>
@@ -72,7 +62,7 @@
 
 {% if all_keywords %}
 <div class="tag-cloud">
-    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;">今日关键词</div>
+    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;">关键词云</div>
     {% for kw, size in all_keywords %}<span class="tag" style="font-size:{{ size }}px;">{{ kw }}</span>{% endfor %}
 </div>
 {% endif %}
@@ -87,5 +77,11 @@ function toggleBody(btn) {
     body.classList.toggle('show');
     btn.innerHTML = expanded ? '展开全文 ▼' : '收起全文 ▲';
 }
+document.querySelectorAll('.sidebar a').forEach(function(link) {
+    link.addEventListener('click', function() {
+        document.querySelectorAll('.sidebar a').forEach(function(l) { l.classList.remove('active'); });
+        this.classList.add('active');
+    });
+});
 </script>
 {% endblock %}

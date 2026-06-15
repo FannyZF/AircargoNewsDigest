@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}信息来源 - 空运新闻速递{% endblock %}
+{% block content %}
+
+<h2 style="margin-bottom:16px;">信息来源管理</h2>
+
+<div style="margin-bottom:16px;">
+    <button class="btn btn-primary" onclick="showAddForm()" id="add-btn">+ 添加来源</button>
+</div>
+
+<div id="add-form" style="display:none;margin-bottom:24px;" class="card">
+    <h3 style="margin-bottom:14px;">新增新闻来源</h3>
+    <div style="display:grid;gap:10px;max-width:600px;">
+        <div><label style="font-weight:600;display:block;">名称</label><input type="text" id="src-name" placeholder="Air Cargo News" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">网站首页</label><input type="text" id="src-base-url" placeholder="https://www.example.com" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">列表页 URL</label><input type="text" id="src-list-url" placeholder="https://www.example.com/" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">列表容器 CSS 选择器</label><input type="text" id="src-container" placeholder="article.summary" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">标题选择器</label><input type="text" id="src-title" placeholder="h2.entry-title a" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">链接选择器</label><input type="text" id="src-link" placeholder="h2.entry-title a" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">日期选择器</label><input type="text" id="src-date" placeholder="time.pubdate" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">日期属性 (datetime / text)</label><input type="text" id="src-date-attr" placeholder="datetime" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">日期正则 (仅 text 模式)</label><input type="text" id="src-date-regex" placeholder="" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">摘要选择器 (可选)</label><input type="text" id="src-summary" placeholder="p.excerpt" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">正文内容选择器</label><input type="text" id="src-content" placeholder="div.entry-content" style="width:100%;"/></div>
+        <div><label style="font-weight:600;display:block;">分页模板 (可选, 如 /page/{page}/)</label><input type="text" id="src-pagination" placeholder="/page/{page}/" style="width:100%;"/></div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+            <button class="btn btn-primary" onclick="addSource()">确认添加</button>
+            <button class="btn btn-outline" onclick="hideAddForm()">取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="sources-list">
+{% for src in sources %}
+<div class="card" style="border-left:3px solid var(--src-purple);">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <span style="font-weight:600;">{{ src.name }}</span>
+            <span style="color:var(--text-secondary);font-size:12px;margin-left:10px;">{{ src.base_url }}</span>
+            {% if not src.enabled %}<span class="badge" style="background:#ffcdd2;color:#c62828;">已禁用</span>{% endif %}
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteSource({{ loop.index0 }})">删除</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">
+        容器: <code>{{ src.selectors.list_container }}</code> |
+        正文: <code>{{ src.article_selector.content }}</code>
+        {% if src.pagination.pattern %}| 分页: <code>{{ src.pagination.pattern }}</code>{% endif %}
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<p style="color:var(--text-secondary);font-size:12px;margin-top:16px;">
+    添加或删除来源会更新 config.yaml，需要重启服务后生效。<br>
+    重启命令: <code>sudo systemctl restart aircargo-news</code>
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function showAddForm() { document.getElementById('add-form').style.display = 'block'; }
+function hideAddForm() { document.getElementById('add-form').style.display = 'none'; }
+
+async function addSource() {
+    const data = {
+        name: document.getElementById('src-name').value.trim(),
+        base_url: document.getElementById('src-base-url').value.trim(),
+        list_url: document.getElementById('src-list-url').value.trim(),
+        enabled: true,
+        selectors: {
+            list_container: document.getElementById('src-container').value.trim(),
+            title: document.getElementById('src-title').value.trim(),
+            link: document.getElementById('src-link').value.trim(),
+            date: document.getElementById('src-date').value.trim(),
+            date_attr: document.getElementById('src-date-attr').value.trim() || 'datetime',
+            date_regex: document.getElementById('src-date-regex').value.trim(),
+            summary: document.getElementById('src-summary').value.trim(),
+        },
+        article_selector: {
+            content: document.getElementById('src-content').value.trim(),
+        },
+        pagination: {
+            pattern: document.getElementById('src-pagination').value.trim(),
+            start: 1,
+        }
+    };
+    if (!data.name || !data.base_url) { alert('名称和网站首页为必填'); return; }
+    try {
+        const resp = await fetch('/api/sources', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await resp.json();
+        if (resp.ok) { alert(result.message); location.reload(); }
+        else { alert(result.detail); }
+    } catch(e) { alert('添加失败: ' + e.message); }
+}
+
+async function deleteSource(idx) {
+    if (!confirm('确定删除该新闻来源？')) return;
+    try {
+        const resp = await fetch('/api/sources/' + idx, {method: 'DELETE'});
+        const result = await resp.json();
+        if (resp.ok) { alert(result.message); location.reload(); }
+        else { alert(result.detail); }
+    } catch(e) { alert('删除失败: ' + e.message); }
+}
+</script>
+{% endblock %}

@@ -6,216 +6,75 @@
 <title>空运新闻速递 - {{ date_str }}</title>
 <style>
 :root {
-    --bg: #ffffff;
-    --bg-card: #f8f9fa;
-    --bg-highlight: #fff8e1;
-    --text: #212529;
-    --text-secondary: #6c757d;
-    --border: #dee2e6;
-    --accent: #d32f2f;
-    --accent-light: #ffebee;
-    --china-high: #c62828;
-    --china-med: #e65100;
-    --tag-bg: #e3f2fd;
-    --tag-text: #1565c0;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    --radius: 8px;
-}
-[data-theme="dark"] {
-    --bg: #1a1a2e;
-    --bg-card: #16213e;
-    --bg-highlight: #1a1a2e;
-    --text: #e0e0e0;
-    --text-secondary: #a0a0a0;
-    --border: #2a2a4a;
-    --accent: #ef5350;
-    --accent-light: #2a1a1a;
-    --china-high: #ef5350;
-    --china-med: #ff9800;
-    --tag-bg: #0d2137;
-    --tag-text: #64b5f6;
-    --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --bg: #f5f5f5; --card-bg: #ffffff; --text: #212529; --text-secondary: #6c757d;
+    --border: #dee2e6; --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 8px;
+    --src-purple: #7b1fa2; --src-bg: #f3e5f5;
+    --cat-green: #2e7d32; --cat-bg: #e8f5e9;
+    --region-blue: #1565c0; --region-bg: #e3f2fd;
+    --tag-bg: #eceff1; --tag-text: #37474f;
+    --china-red: #c62828; --china-bg: #ffebee;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.7;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px 16px 60px;
+    background: var(--bg); color: var(--text); line-height: 1.7;
+    max-width: 900px; margin: 0 auto; padding: 20px 16px 60px;
 }
-.header {
-    text-align: center;
-    padding: 32px 0 24px;
-    border-bottom: 2px solid var(--accent);
-    margin-bottom: 24px;
-}
-.header h1 { font-size: 28px; margin-bottom: 8px; }
+.header { text-align: center; padding: 28px 0 20px; border-bottom: 2px solid var(--src-purple); margin-bottom: 20px; }
+.header h1 { font-size: 26px; margin-bottom: 6px; }
 .header .meta { color: var(--text-secondary); font-size: 14px; }
-.header .china-stats { margin-top: 10px; font-size: 13px; color: var(--china-high); }
-.theme-toggle {
-    float: right;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    cursor: pointer;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text);
-}
 .section-title {
-    font-size: 20px;
-    margin: 28px 0 14px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-    color: var(--accent);
+    font-size: 18px; margin: 24px 0 12px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--src-purple); color: var(--src-purple);
 }
-.news-card {
-    background: var(--bg-card);
-    border-radius: var(--radius);
-    padding: 18px 20px;
-    margin-bottom: 14px;
-    box-shadow: var(--shadow);
-    border-left: 3px solid transparent;
-    transition: border-color 0.2s;
+.card {
+    background: var(--card-bg); border-radius: var(--radius); padding: 18px;
+    margin-bottom: 14px; box-shadow: var(--shadow);
 }
-.news-card.highlight { border-left-color: var(--accent); }
-.news-card.china-high { border-left-color: var(--china-high); }
-.news-card-title {
-    font-size: 17px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    line-height: 1.5;
-}
-.news-card-title a { color: var(--text); text-decoration: none; }
-.news-card-title a:hover { color: var(--accent); }
-.news-card-meta {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    align-items: center;
-}
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; line-height: 1.5; }
+.card-title a { color: var(--text); text-decoration: none; }
+.card-title a:hover { color: var(--src-purple); }
+.card-meta { font-size: 12px; margin-bottom: 8px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .badge {
-    display: inline-block;
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 500;
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
 }
-.badge-source { background: #e8eaf6; color: #283593; }
-.badge-category { background: #e8f5e9; color: #2e7d32; }
-.badge-china-high { background: #ffebee; color: #c62828; }
-.badge-china-medium { background: #fff3e0; color: #e65100; }
-[data-theme="dark"] .badge-source { background: #1a237e; color: #9fa8da; }
-[data-theme="dark"] .badge-category { background: #1b5e20; color: #a5d6a7; }
-[data-theme="dark"] .badge-china-high { background: #4a0000; color: #ef9a9a; }
-[data-theme="dark"] .badge-china-medium { background: #3e1a00; color: #ffcc80; }
-.news-card-summary { font-size: 14px; color: var(--text); margin-bottom: 8px; }
-.news-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.tag {
-    background: var(--tag-bg);
-    color: var(--tag-text);
-    font-size: 12px;
-    padding: 2px 10px;
-    border-radius: 12px;
-    white-space: nowrap;
-}
-.news-card-body {
-    display: none;
-    margin-top: 12px;
-    padding: 14px 16px;
-    background: var(--bg);
-    border-radius: 6px;
-    font-size: 14px;
-    line-height: 1.8;
-    border: 1px solid var(--border);
-}
-.news-card-body.show { display: block; }
-.expand-btn {
-    color: var(--accent);
-    font-size: 13px;
-    cursor: pointer;
-    border: none;
-    background: none;
-    padding: 4px 0;
-    text-decoration: underline;
-}
-.china-note {
-    font-size: 12px;
-    padding: 3px 0;
-    color: var(--china-high);
-    font-style: italic;
-}
-.tag-cloud { padding: 20px 0; text-align: center; }
+.badge-source { background: var(--src-bg); color: var(--src-purple); }
+.badge-cat { background: var(--cat-bg); color: var(--cat-green); }
+.badge-region { background: var(--region-bg); color: var(--region-blue); }
+.badge-china { background: var(--china-bg); color: var(--china-red); }
+.card-summary { font-size: 14px; margin-bottom: 6px; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+.tag { background: var(--tag-bg); color: var(--tag-text); font-size: 12px; padding: 2px 10px; border-radius: 12px; }
+.card-body { display: none; margin-top: 10px; padding: 14px; background: #fafafa; border-radius: 6px; font-size: 14px; line-height: 1.8; border: 1px solid var(--border); }
+.card-body.show { display: block; }
+.expand-btn { color: var(--src-purple); font-size: 13px; cursor: pointer; border: none; background: none; padding: 4px 0; text-decoration: underline; }
+.tag-cloud { text-align: center; padding: 16px 0; }
 .tag-cloud .tag { cursor: default; margin: 3px; display: inline-block; }
-.footer {
-    text-align: center;
-    padding: 32px 0 16px;
-    color: var(--text-secondary);
-    font-size: 12px;
-    border-top: 1px solid var(--border);
-    margin-top: 32px;
-}
-@media (max-width: 640px) {
-    body { padding: 12px; }
-    .header h1 { font-size: 22px; }
-    .news-card { padding: 14px; }
-}
+.footer { text-align: center; padding: 24px 0 12px; color: var(--text-secondary); font-size: 12px; border-top: 1px solid var(--border); margin-top: 24px; }
+@media (max-width: 640px) { body { padding: 12px; } .header h1 { font-size: 22px; } .card { padding: 14px; } }
 </style>
 </head>
-<body data-theme="light">
-<button class="theme-toggle" onclick="toggleTheme()" title="切换暗色模式">&#9788;</button>
+<body>
 <div class="header">
     <h1>空运新闻速递</h1>
-    <div class="meta">{{ date_display }} | 共收录 {{ total_count }} 条新闻 | 来源: {{ sources }}</div>
-    {% if china_count > 0 %}
-    <div class="china-stats">中国相关新闻: {{ china_count }} 条 (高关联 {{ china_high_count }} / 中关联 {{ china_medium_count }})</div>
-    {% endif %}
+    <div class="meta">{{ date_display }} | 共 {{ total_count }} 条新闻 | 来源: {{ sources }}</div>
 </div>
-
-{% if headlines %}
-<div class="section-title">&#9733; 今日头条</div>
-{% for news in headlines %}
-<div class="news-card highlight {{ 'china-high' if news.china_relevance == 'high' else '' }}">
-    <div class="news-card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
-    <div class="news-card-meta">
-        <span class="badge badge-source">{{ news.source }}</span>
-        <span class="badge badge-category">{{ news.get_category_label() }}</span>
-        {% if news.china_relevance == 'high' %}<span class="badge badge-china-high">&#9733; 中国相关</span>{% elif news.china_relevance == 'medium' %}<span class="badge badge-china-medium">&#9734; 亚太相关</span>{% endif %}
-    </div>
-    {% if news.china_angle %}<div class="china-note">{{ news.china_angle }}</div>{% endif %}
-    <div class="news-card-summary">{{ news.summary }}</div>
-    <div class="news-card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
-    <button class="expand-btn" onclick="toggleBody(this)">展开全文 &#9660;</button>
-    <div class="news-card-body">{{ news.translated_text or news.original_text }}</div>
-</div>
-{% endfor %}
-{% endif %}
 
 {% for cat_id, cat_name, cat_items in categories %}
 {% if cat_items %}
-<div class="section-title">&#9632; {{ cat_name }} ({{ cat_items|length }})</div>
+<div class="section-title">{{ cat_name }} ({{ cat_items|length }})</div>
 {% for news in cat_items %}
-<div class="news-card {{ 'china-high' if news.china_relevance == 'high' else '' }}">
-    <div class="news-card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
-    <div class="news-card-meta">
+<div class="card">
+    <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
+    <div class="card-meta">
         <span class="badge badge-source">{{ news.source }}</span>
-        {% if news.china_relevance == 'high' %}<span class="badge badge-china-high">&#9733; 中国相关</span>{% elif news.china_relevance == 'medium' %}<span class="badge badge-china-medium">&#9734; 亚太相关</span>{% endif %}
+        {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
+        {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
     </div>
-    {% if news.china_angle %}<div class="china-note">{{ news.china_angle }}</div>{% endif %}
-    <div class="news-card-summary">{{ news.summary }}</div>
-    <div class="news-card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
-    <button class="expand-btn" onclick="toggleBody(this)">展开全文 &#9660;</button>
-    <div class="news-card-body">{{ news.translated_text or news.original_text }}</div>
+    <div class="card-summary">{{ news.summary }}</div>
+    <div class="card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
+    <button class="expand-btn" onclick="toggleBody(this)">展开全文 ▼</button>
+    <div class="card-body">{{ news.translated_text or news.original_text }}</div>
 </div>
 {% endfor %}
 {% endif %}
@@ -223,30 +82,19 @@ body {
 
 {% if all_keywords %}
 <div class="tag-cloud">
-    <div style="font-size:14px; color:var(--text-secondary); margin-bottom:12px;">今日关键词标签云</div>
-    {% for kw, size in all_keywords %}
-    <span class="tag" style="font-size:{{ size }}px; margin:3px;">{{ kw }}</span>
-    {% endfor %}
+    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;">关键词云</div>
+    {% for kw, size in all_keywords %}<span class="tag" style="font-size:{{ size }}px;">{{ kw }}</span>{% endfor %}
 </div>
 {% endif %}
 
-<div class="footer">
-    空运新闻速递 | {{ date_str }}
-</div>
+<div class="footer">空运新闻速递 | {{ date_str }}</div>
 
 <script>
-function toggleTheme() {
-    var body = document.body;
-    var current = body.getAttribute('data-theme');
-    var next = current === 'dark' ? 'light' : 'dark';
-    body.setAttribute('data-theme', next);
-    document.querySelector('.theme-toggle').innerHTML = next === 'dark' ? '&#9789;' : '&#9788;';
-}
 function toggleBody(btn) {
     var body = btn.nextElementSibling;
     var expanded = body.classList.contains('show');
     body.classList.toggle('show');
-    btn.innerHTML = expanded ? '展开全文 &#9660;' : '收起全文 &#9650;';
+    btn.innerHTML = expanded ? '展开全文 ▼' : '收起全文 ▲';
 }
 </script>
 </body>
