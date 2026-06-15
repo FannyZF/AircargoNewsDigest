@@ -33,7 +33,7 @@
     <div style="margin-top:32px;text-align:left;">
         <div class="section-title">最近新闻</div>
         {% for news in recent_items[:10] %}
-        <div class="card" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
+        <div class="card" data-id="{{ news.id }}" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
             <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
             <div class="card-meta-rows">
                 <div class="meta-row"><span class="meta-label">来源</span> <span class="badge badge-source">{{ news.source }}</span>{% if news.published_at %} <span class="meta-date">{{ news.published_at[:10] }}</span>{% endif %}</div>
@@ -52,7 +52,7 @@
 {% if cat_items %}
 <div class="section-title cat-section" data-cat="{{ cat_id }}">{{ cat_name }} ({{ cat_items|length }})</div>
 {% for news in cat_items %}
-<div class="card" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
+<div class="card" data-id="{{ news.id }}" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
     <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
     <div class="card-meta-rows">
         <div class="meta-row"><span class="meta-label">来源</span> <span class="badge badge-source">{{ news.source }}</span>{% if news.published_at %} <span class="meta-date">{{ news.published_at[:10] }}</span>{% endif %}</div>
@@ -117,28 +117,38 @@ function updateAll() {
             sec.style.display = 'none';
         }
     });
-    document.getElementById('total-count').textContent = visibleCards().length;
+    var uniqueIds = {};
+    visibleCards().forEach(function(c) {
+        var id = c.getAttribute('data-id');
+        if (id) uniqueIds[id] = true;
+    });
+    document.getElementById('total-count').textContent = Object.keys(uniqueIds).length;
     buildSidebar();
     renderActiveFilters();
 }
 
 function buildSidebar() {
-    // Sources
-    var srcCounts = {};
-    allCards().forEach(function(c) { var s = getSource(c); srcCounts[s] = (srcCounts[s]||0) + 1; });
-    var fullCounts = {};
+    // Unique articles (by id, for accurate source count)
+    var uniqueCards = [];
+    var seenIds = {};
     allCards().forEach(function(c) {
-        if (!activeCategory && !activeRegion) { var s = getSource(c); fullCounts[s] = (fullCounts[s]||0) + 1; }
+        var id = c.getAttribute('data-id');
+        if (id && !seenIds[id]) { seenIds[id] = true; uniqueCards.push(c); }
     });
+    if (uniqueCards.length === 0) uniqueCards = Array.from(allCards());
+
+    // Sources - count unique articles per source
+    var srcCounts = {};
+    uniqueCards.forEach(function(c) { var s = getSource(c); srcCounts[s] = (srcCounts[s]||0) + 1; });
     var srcHtml = '';
     Object.keys(srcCounts).sort().forEach(function(s) {
-        var count = activeSource ? (s===activeSource ? fullCounts[s]||srcCounts[s] : srcCounts[s]) : srcCounts[s];
+        var count = srcCounts[s];
         var cls = activeSource === s ? 'active' : '';
         srcHtml += '<a href="#" class="' + cls + '" onclick="toggleSource(\'' + s.replace(/'/g,"\\'") + '\');return false;">' + s + ' (' + count + ')</a>';
     });
     document.getElementById('filter-sources').innerHTML = srcHtml;
 
-    // Categories - show all
+    // Categories - allow counting duplicates across categories
     var catHtml = '';
     CATEGORY_ORDER.forEach(function(c) {
         var count = 0;
@@ -148,7 +158,7 @@ function buildSidebar() {
     });
     document.getElementById('filter-categories').innerHTML = catHtml;
 
-    // Regions - show all
+    // Regions - allow counting duplicates across categories
     var regHtml = '';
     REGION_ORDER.forEach(function(r) {
         var count = 0;
