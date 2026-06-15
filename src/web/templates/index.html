@@ -33,7 +33,7 @@
     <div style="margin-top:32px;text-align:left;">
         <div class="section-title">最近新闻</div>
         {% for news in recent_items[:10] %}
-        <div class="card">
+        <div class="card" data-source="{{ news.source }}" data-categories="{{ news.categories }}" data-regions="{{ news.regions }}">
             <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
             <div class="card-meta">
                 <span class="badge badge-source">{{ news.source }}</span>
@@ -48,178 +48,132 @@
 </div>
 {% else %}
 
-<div id="cards-container"></div>
+{% for cat_id, cat_name, cat_items in categories %}
+{% if cat_items %}
+<div class="section-title cat-section" data-cat="{{ cat_id }}">{{ cat_name }} ({{ cat_items|length }})</div>
+{% for news in cat_items %}
+<div class="card" data-source="{{ news.source }}" data-categories="{{ news.categories }}" data-regions="{{ news.regions }}">
+    <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
+    <div class="card-meta">
+        <span class="badge badge-source">{{ news.source }}</span>
+        {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
+        {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
+    </div>
+    <div class="card-summary">{{ news.summary }}</div>
+    <div class="card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
+    <button class="expand-btn" onclick="toggleCardBody(this)">展开全文 ▼</button>
+    <div class="card-body">{{ news.translated_text or news.original_text }}</div>
+</div>
+{% endfor %}
+{% endif %}
+{% endfor %}
 
 {% endif %}
 {% endblock %}
 {% block scripts %}
 <script>
-// Item data from server
-const ITEMS = [
-{% for news in items %}
-{
-    id: "{{ news.id }}",
-    url: "{{ news.url }}",
-    title: "{{ news.title | e }}",
-    translated_title: "{{ news.translated_title | e }}",
-    translated_text: "{{ news.translated_text | e }}",
-    original_text: "{{ news.original_text | e }}",
-    summary: "{{ news.summary | e }}",
-    source: "{{ news.source }}",
-    categories: {{ news.categories | safe }},
-    regions: {{ news.regions | safe }},
-    keywords: {{ news.keywords | safe }},
-    published_at: "{{ news.published_at }}",
-    category_labels: {{ news.get_category_labels() | tojson }},
-    region_labels: {{ news.get_region_labels() | tojson }}
-}{% if not loop.last %},{% endif %}
-{% endfor %}
-];
+var CATEGORY_LABELS = { {% for k, v in CATEGORY_LABELS.items() %}"{{ k }}":"{{ v }}"{% if not loop.last %},{% endif %}{% endfor %} };
+var REGION_LABELS = { {% for k, v in REGION_LABELS.items() %}"{{ k }}":"{{ v }}"{% if not loop.last %},{% endif %}{% endfor %} };
+var CATEGORY_ORDER = [["1","\u8fd0\u4ef7"],["2","\u8fd0\u529b"],["3","\u822a\u7ebf"],["4","\u653f\u7b56\u6cd5\u89c4"],["5","\u4f01\u4e1a\u52a8\u6001"],["6","\u5e02\u573a\u62a5\u544a"],["7","\u6280\u672f\u4e0e\u53ef\u6301\u7eed"],["8","\u5176\u4ed6"]];
+var REGION_ORDER = ["China","Asia","Europe","NorthAmerica","SouthAmerica","MiddleEast","Africa","Oceania","Global"];
 
-const CATEGORY_LABELS = {{ CATEGORY_LABELS | tojson }};
-const REGION_LABELS = {{ REGION_LABELS | tojson }};
-const CATEGORY_ORDER = [["1","运价"],["2","运力"],["3","航线"],["4","政策法规"],["5","企业动态"],["6","市场报告"],["7","技术与可持续"],["8","其他"]];
-const REGION_ORDER = ["China","Asia","Europe","NorthAmerica","SouthAmerica","MiddleEast","Africa","Oceania","Global"];
+var activeSource = null;
+var activeCategory = null;
+var activeRegion = null;
 
-// Active filters
-let activeSource = null;
-let activeCategory = null;
-let activeRegion = null;
+function allCards() { return document.querySelectorAll('.card'); }
+function allSections() { return document.querySelectorAll('.cat-section'); }
 
-function getFilteredItems() {
-    return ITEMS.filter(function(item) {
-        if (activeSource && item.source !== activeSource) return false;
-        if (activeCategory && item.categories.indexOf(activeCategory) === -1) return false;
-        if (activeRegion && item.regions.indexOf(activeRegion) === -1) return false;
-        return true;
+function getSource(card) { return card.getAttribute('data-source'); }
+function getCategories(card) { return JSON.parse(card.getAttribute('data-categories') || '[]'); }
+function getRegions(card) { return JSON.parse(card.getAttribute('data-regions') || '[]'); }
+
+function visibleCards() {
+    var cards = [];
+    allCards().forEach(function(c) {
+        if (activeSource && getSource(c) !== activeSource) return;
+        if (activeCategory && getCategories(c).indexOf(activeCategory) === -1) return;
+        if (activeRegion && getRegions(c).indexOf(activeRegion) === -1) return;
+        cards.push(c);
     });
+    return cards;
 }
 
-function countBy(field, value, items) {
-    if (field === 'source') return items.filter(function(i) { return i.source === value; }).length;
-    if (field === 'category') return items.filter(function(i) { return i.categories.indexOf(value) !== -1; }).length;
-    if (field === 'region') return items.filter(function(i) { return i.regions.indexOf(value) !== -1; }).length;
-    return 0;
+function updateAll() {
+    // show/hide cards
+    var visible = new Set();
+    visibleCards().forEach(function(c) { visible.add(c); });
+    allCards().forEach(function(c) {
+        c.style.display = visible.has(c) ? '' : 'none';
+    });
+    // show/hide section titles and update counts
+    allSections().forEach(function(sec) {
+        var cat = sec.getAttribute('data-cat');
+        var count = visibleCards().filter(function(c) { return getCategories(c).indexOf(cat) !== -1; }).length;
+        if (count > 0) {
+            sec.style.display = '';
+            sec.textContent = CATEGORY_LABELS[cat] + ' (' + count + ')';
+        } else {
+            sec.style.display = 'none';
+        }
+    });
+    document.getElementById('total-count').textContent = visibleCards().length;
+    buildSidebar();
+    renderActiveFilters();
 }
 
 function buildSidebar() {
-    var allItems = getFilteredItems();
-    var pool = activeSource || activeCategory || activeRegion ? ITEMS : allItems;
-
     // Sources
-    var sources = {};
-    ITEMS.forEach(function(i) { sources[i.source] = (sources[i.source] || 0) + 1; });
-    var srcKeys = Object.keys(sources).sort();
+    var srcCounts = {};
+    allCards().forEach(function(c) { var s = getSource(c); srcCounts[s] = (srcCounts[s]||0) + 1; });
+    var fullCounts = {};
+    allCards().forEach(function(c) {
+        if (!activeCategory && !activeRegion) { var s = getSource(c); fullCounts[s] = (fullCounts[s]||0) + 1; }
+    });
     var srcHtml = '';
-    srcKeys.forEach(function(s) {
-        var count = activeSource ? (s === activeSource ? sources[s] : countBy('source', s, pool)) : sources[s];
+    Object.keys(srcCounts).sort().forEach(function(s) {
+        var count = activeSource ? (s===activeSource ? fullCounts[s]||srcCounts[s] : srcCounts[s]) : srcCounts[s];
         var cls = activeSource === s ? 'active' : '';
-        srcHtml += '<a href="#" class="' + cls + '" data-source="' + s + '" onclick="toggleSource(\'' + s.replace(/'/g, "\\'") + '\');return false;">' + s + ' (' + count + ')</a>';
+        srcHtml += '<a href="#" class="' + cls + '" onclick="toggleSource(\'' + s.replace(/'/g,"\\'") + '\');return false;">' + s + ' (' + count + ')</a>';
     });
     document.getElementById('filter-sources').innerHTML = srcHtml;
 
     // Categories
     var catHtml = '';
     CATEGORY_ORDER.forEach(function(c) {
-        var totalInPool = countBy('category', c[0], pool);
-        if (totalInPool === 0 && !activeCategory) return;
-        var count = activeCategory ? (c[0] === activeCategory ? countBy('category', c[0], ITEMS) : totalInPool) : totalInPool;
-        if (count === 0 && c[0] !== activeCategory) return;
+        var count = 0;
+        allCards().forEach(function(card) { if (getCategories(card).indexOf(c[0]) !== -1) count++; });
+        if (count === 0 && activeCategory !== c[0]) return;
         var cls = activeCategory === c[0] ? 'active' : '';
-        catHtml += '<a href="#" class="' + cls + '" data-cat="' + c[0] + '" onclick="toggleCategory(\'' + c[0] + '\');return false;">' + c[1] + ' (' + count + ')</a>';
+        catHtml += '<a href="#" class="' + cls + '" onclick="toggleCategory(\'' + c[0] + '\');return false;">' + c[1] + ' (' + count + ')</a>';
     });
     document.getElementById('filter-categories').innerHTML = catHtml;
 
     // Regions
     var regHtml = '';
     REGION_ORDER.forEach(function(r) {
-        var totalInPool = countBy('region', r, pool);
-        if (totalInPool === 0 && !activeRegion) return;
-        var count = activeRegion ? (r === activeRegion ? countBy('region', r, ITEMS) : totalInPool) : totalInPool;
-        if (count === 0 && r !== activeRegion) return;
+        var count = 0;
+        allCards().forEach(function(card) { if (getRegions(card).indexOf(r) !== -1) count++; });
+        if (count === 0 && activeRegion !== r) return;
         var cls = activeRegion === r ? 'active' : '';
-        regHtml += '<a href="#" class="' + cls + '" data-reg="' + r + '" onclick="toggleRegion(\'' + r + '\');return false;">' + REGION_LABELS[r] + ' (' + count + ')</a>';
+        regHtml += '<a href="#" class="' + cls + '" onclick="toggleRegion(\'' + r + '\');return false;">' + REGION_LABELS[r] + ' (' + count + ')</a>';
     });
     document.getElementById('filter-regions').innerHTML = regHtml;
 }
 
-function toggleSource(src) {
-    activeSource = activeSource === src ? null : src;
-    renderAll();
-}
-
-function toggleCategory(cat) {
-    activeCategory = activeCategory === cat ? null : cat;
-    renderAll();
-}
-
-function toggleRegion(reg) {
-    activeRegion = activeRegion === reg ? null : reg;
-    renderAll();
-}
+function toggleSource(s) { activeSource = activeSource === s ? null : s; updateAll(); }
+function toggleCategory(c) { activeCategory = activeCategory === c ? null : c; updateAll(); }
+function toggleRegion(r) { activeRegion = activeRegion === r ? null : r; updateAll(); }
 
 function renderActiveFilters() {
     var html = '';
-    if (activeSource) {
-        html += '<span class="filter-tag">来源: ' + activeSource + ' <a href="#" onclick="toggleSource(\'' + activeSource.replace(/'/g, "\\'") + '\');return false;" style="margin-left:4px;color:var(--text);text-decoration:none;font-weight:bold;">&times;</a></span>';
-    }
-    if (activeCategory) {
-        html += '<span class="filter-tag">分类: ' + CATEGORY_LABELS[activeCategory] + ' <a href="#" onclick="toggleCategory(\'' + activeCategory + '\');return false;" style="margin-left:4px;color:var(--text);text-decoration:none;font-weight:bold;">&times;</a></span>';
-    }
-    if (activeRegion) {
-        html += '<span class="filter-tag">区域: ' + REGION_LABELS[activeRegion] + ' <a href="#" onclick="toggleRegion(\'' + activeRegion + '\');return false;" style="margin-left:4px;color:var(--text);text-decoration:none;font-weight:bold;">&times;</a></span>';
-    }
+    if (activeSource) html += '<span class="filter-tag">来源: ' + activeSource + ' <a href="#" onclick="toggleSource(\'' + activeSource.replace(/'/g,"\\'") + '\');return false;" style="margin-left:4px;font-weight:bold;">&times;</a></span>';
+    if (activeCategory) html += '<span class="filter-tag">分类: ' + CATEGORY_LABELS[activeCategory] + ' <a href="#" onclick="toggleCategory(\'' + activeCategory + '\');return false;" style="margin-left:4px;font-weight:bold;">&times;</a></span>';
+    if (activeRegion) html += '<span class="filter-tag">区域: ' + REGION_LABELS[activeRegion] + ' <a href="#" onclick="toggleRegion(\'' + activeRegion + '\');return false;" style="margin-left:4px;font-weight:bold;">&times;</a></span>';
     if (activeSource || activeCategory || activeRegion) {
-        html += '<a href="#" onclick="clearAllFilters();return false;" style="font-size:12px;color:var(--src-purple);text-decoration:underline;line-height:24px;">清除全部</a>';
+        html += '<a href="#" onclick="activeSource=null;activeCategory=null;activeRegion=null;updateAll();return false;" style="font-size:12px;color:var(--src-purple);text-decoration:underline;line-height:24px;">清除全部</a>';
     }
     document.getElementById('active-filters').innerHTML = html;
-}
-
-function clearAllFilters() {
-    activeSource = null;
-    activeCategory = null;
-    activeRegion = null;
-    renderAll();
-}
-
-function renderCards() {
-    var items = getFilteredItems();
-    document.getElementById('total-count').textContent = items.length;
-    var container = document.getElementById('cards-container');
-    if (items.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>没有匹配的新闻</p></div>';
-        return;
-    }
-    var grouped = {};
-    CATEGORY_ORDER.forEach(function(c) {
-        var catItems = items.filter(function(i) { return i.categories.indexOf(c[0]) !== -1; });
-        if (catItems.length > 0) grouped[c[0]] = {name: c[1], items: catItems};
-    });
-    var html = '';
-    Object.keys(grouped).forEach(function(catId) {
-        var g = grouped[catId];
-        html += '<div class="section-title" id="cat-' + catId + '">' + g.name + ' (' + g.items.length + ')</div>';
-        g.items.forEach(function(news) {
-            var catBadges = news.category_labels.map(function(l) { return '<span class="badge badge-cat">' + l + '</span>'; }).join('');
-            var regionBadges = news.regions.map(function(r) {
-                var cls = r === 'China' ? 'badge-china' : 'badge-region';
-                return '<span class="badge ' + cls + '">' + REGION_LABELS[r] + '</span>';
-            }).join('');
-            var tags = news.keywords.map(function(k) { return '<span class="tag">' + k + '</span>'; }).join('');
-            html += '<div class="card">' +
-                '<div class="card-title"><a href="' + news.url + '" target="_blank">' + (news.translated_title || news.title) + '</a></div>' +
-                '<div class="card-meta">' +
-                '<span class="badge badge-source">' + news.source + '</span>' +
-                catBadges + regionBadges +
-                '</div>' +
-                '<div class="card-summary">' + (news.summary || '') + '</div>' +
-                (tags ? '<div class="card-tags">' + tags + '</div>' : '') +
-                '<button class="expand-btn" onclick="toggleCardBody(this)">展开全文 ▼</button>' +
-                '<div class="card-body">' + (news.translated_text || news.original_text) + '</div>' +
-                '</div>';
-        });
-    });
-    container.innerHTML = html;
 }
 
 function toggleCardBody(btn) {
@@ -229,13 +183,7 @@ function toggleCardBody(btn) {
     btn.innerHTML = expanded ? '展开全文 ▼' : '收起全文 ▲';
 }
 
-function renderAll() {
-    buildSidebar();
-    renderActiveFilters();
-    renderCards();
-}
-
-renderAll();
+updateAll();
 </script>
 
 <style>
