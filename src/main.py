@@ -248,8 +248,8 @@ def cmd_web(config: dict, _args):
     from src.web.app import create_app
 
     app = create_app(config)
-    logger.info("Starting web server at http://localhost:8080")
-    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
+    logger.info("Starting web server at http://0.0.0.0:18903")
+    uvicorn.run(app, host="0.0.0.0", port=18903, log_level="info")
 
 
 def main():
