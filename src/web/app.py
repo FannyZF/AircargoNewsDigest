@@ -437,6 +437,15 @@ def create_app(config: dict) -> FastAPI:
         threading.Thread(target=_run, daemon=True).start()
         return JSONResponse({"status": "started", "message": "全流程已触发，完成后自动刷新页面"})
 
+    @app.post("/api/trigger/restart")
+    async def trigger_restart():
+        def _restart():
+            import time, os, sys
+            time.sleep(1)
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        threading.Thread(target=_restart, daemon=True).start()
+        return JSONResponse({"status": "started", "message": "服务正在重启..."})
+
     @app.post("/api/trigger/backfill")
     async def trigger_backfill():
         logger.info("Web trigger: backfill (since 2026-05-01)")

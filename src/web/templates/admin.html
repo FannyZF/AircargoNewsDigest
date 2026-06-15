@@ -31,6 +31,11 @@
     <button class="btn btn-outline" onclick="trigger('report')" id="btn-report">生成日报</button>
     <button class="btn btn-primary" onclick="trigger('run')" id="btn-run">一键全流程</button>
 </div>
+
+<div style="margin-top:8px;">
+    <button class="btn btn-danger" onclick="restartService()" id="btn-restart" style="font-size:13px;">重启服务</button>
+    <span style="color:var(--text-secondary);font-size:12px;margin-left:8px;">添加来源后需重启生效</span>
+</div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -58,6 +63,15 @@ async function trigger(action) {
         btn.disabled = false;
         setTimeout(() => location.reload(), 2000);
     }
+}
+async function restartService() {
+    if (!confirm('确定重启服务？页面会在几秒后自动恢复。')) return;
+    try {
+        await fetch('/api/trigger/restart', {method:'POST'});
+    } catch(e) {}
+    showToast('服务重启中，请等待...', 'success');
+    setTimeout(() => { location.reload(); }, 5000);
+    setTimeout(() => { location.reload(); }, 10000);
 }
 </script>
 {% endblock %}
