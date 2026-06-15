@@ -44,6 +44,7 @@ def create_app(config: dict) -> FastAPI:
         return HTMLResponse(template.render(**context))
 
     output_dir = Path(config.get("output", {}).get("dir", "./output"))
+    output_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/digests", StaticFiles(directory=str(output_dir.resolve())), name="digests")
 
     @app.get("/", response_class=HTMLResponse)
