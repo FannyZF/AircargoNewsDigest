@@ -142,43 +142,56 @@ def create_app(config: dict) -> FastAPI:
         try:
             from bs4 import BeautifulSoup
             import re
-            from datetime import datetime
 
             html = scraper._fetch(url)
             if not html:
-                return JSONResponse({"detail": "Failed to fetch URL"}, status_code=400)
+                return JSONResponse({"detail": "抓取页面失败，请检查 URL 是否正确"}, status_code=400)
 
             soup = BeautifulSoup(html, "lxml")
 
-            # remove noise
             for t in soup.select("script, style, nav, footer, noscript, iframe"):
                 t.decompose()
 
-            # find repeating containers
+            # find news containers by common patterns
             container_candidates = []
-            for tag_name in ["article", "li", "div"]:
-                for el in soup.select(tag_name):
-                    links = el.select("a")
-                    if not links:
-                        continue
-                    cls = " ".join(el.get("class", [])) if el.get("class") else ""
-                    if any(kw in cls for kw in ["post", "article", "news", "entry", "item", "story", "summary", "card", "media", "list"]):
-                        container_candidates.append(el)
+            container_keywords = ["post", "article", "news", "entry", "item", "story", "summary", "card", "media", "list", "row", "story-block", "headline"]
 
-            # if nothing found, try broader search
+            for el in soup.select("article, div, li"):
+                links = el.select("a[href]")
+                if not links:
+                    continue
+                cls_str = " ".join(el.get("class", [])).lower() if el.get("class") else ""
+                tag_lower = el.get("id", "").lower()
+                combined = f"{cls_str} {tag_lower}"
+                if any(kw in combined for kw in container_keywords):
+                    container_candidates.append(el)
+
+            # fallback: find div/li with both a link and a date-like element
             if not container_candidates:
-                for el in soup.select("article, div.post, div.article, li"):
-                    if el.select("a") and el.select_one("time, [datetime], span.date, div.date"):
+                for el in soup.select("div, li"):
+                    if el.select("a[href]") and (el.select_one("time, [datetime]") or re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", el.get_text())):
                         container_candidates.append(el)
 
-            # pick best container
+            # fallback: any article tag
+            if not container_candidates:
+                articles = soup.select("article")
+                if articles:
+                    container_candidates = articles[:1]
+
+            if not container_candidates:
+                return JSONResponse({"detail": "无法识别新闻列表结构，请手动填写 CSS 选择器", "status": "error"}, status_code=400)
+
+            # pick the best container: most child links + has date patterns
             best_container = None
             best_score = 0
             for el in container_candidates:
                 links = el.select("a[href]")
-                date_els = el.select("time, [datetime]") or el.select("*")
                 text = el.get_text()
-                score = len(links) * 2 + (1 if re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", text) else 0)
+                score = len(links) * 2
+                if re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", text):
+                    score += 5
+                if el.select_one("time, [datetime]"):
+                    score += 3
                 if score > best_score:
                     best_score = score
                     best_container = el
@@ -186,30 +199,46 @@ def create_app(config: dict) -> FastAPI:
             if not best_container:
                 return JSONResponse({"detail": "无法自动识别新闻列表结构，请手动填写"}, status_code=400)
 
-            # determine container tag + class
             tag = best_container.name
             cls = " ".join(best_container.get("class", []))
             container_sel = f"{tag}.{cls.replace(' ', '.')}" if cls else tag
 
-            # find same-type containers (siblings or parent children)
+            # count same-type containers
             all_containers = soup.select(container_sel)
-            if len(all_containers) < 3:
-                # try parent's children
-                parent = best_container.parent
-                all_containers = parent.select(f"> {tag}")
+            if len(all_containers) < 3 and best_container.parent and tag:
+                try:
+                    siblings = best_container.parent.select(f"> {tag}")
+                    if len(siblings) > len(all_containers):
+                        all_containers = siblings
+                        container_sel = tag
+                except Exception:
+                    pass
 
             # title selector
             title_sel = ""
-            for sel in ["h2 a", "h3 a", "a.title", "a[class*=title]", "a[class*=heading]", "h2.entry-title a"]:
+            for sel in ["h2 a", "h3 a", "h4 a", "a[class*=title]", "a[class*=headline]", "h2.entry-title a", "h3.entry-title a"]:
                 if best_container.select_one(sel):
                     title_sel = sel
                     break
             if not title_sel:
-                # find the first link that looks like a title
-                linked_headings = best_container.select("h1 a, h2 a, h3 a, h4 a")
-                if linked_headings:
-                    htag = linked_headings[0].parent.name
-                    title_sel = f"{htag} a"
+                headings = best_container.select("h1 a, h2 a, h3 a, h4 a")
+                if headings:
+                    title_sel = f"{headings[0].parent.name} a"
+                else:
+                    links = best_container.select("a[href]")
+                    if links:
+                        # pick the first link that has substantial text
+                        for a in links:
+                            txt = a.get_text(strip=True)
+                            if len(txt) > 15:
+                                candidates = best_container.select(f"a")
+                                title_sel = "a" if len(candidates) == 1 else f"{a.name}"
+                                # use direct child + element name
+                                if a.get("class"):
+                                    title_sel = f"a.{' '.join(a.get('class', []))[:0].replace(' ', '.')}"
+                                if not title_sel or title_sel == "a":
+                                    title_sel = f"{a.parent.name} a" if a.parent else "a"
+                                break
 
             # date selector
             date_sel = ""
@@ -218,46 +247,39 @@ def create_app(config: dict) -> FastAPI:
             time_el = best_container.select_one("time[datetime]")
             if time_el:
                 date_sel = "time"
-                parent_tag = time_el.parent.name
-                cls_list = " ".join(time_el.parent.get("class", []))
-                if cls_list:
-                    date_sel = f"{parent_tag}.{cls_list.replace(' ', '.')} time"
+                if time_el.parent and time_el.parent.get("class"):
+                    pcls = ".".join(time_el.parent.get("class", []))
+                    date_sel = f"div.{pcls} time, span.{pcls} time, .{pcls} time"
             else:
-                for dsel in [".date", ".post-date", ".entry-date", ".meta time", ".small", "span.date"]:
+                for dsel in ["time", ".date", ".post-date", ".entry-date", ".meta time", ".small", "span.date", "[datetime]"]:
                     if best_container.select_one(dsel):
                         date_sel = dsel
                         break
                 if not date_sel:
-                    date_sel = "time, [datetime]"
+                    date_sel = "time, [datetime], .date"
 
-            # summary selector
+            # summary
             summary_sel = ""
-            for ssel in ["p.excerpt", "p.summary", "div.excerpt", "div.entry-summary", "div.summary", ".entry-content p", ".post-excerpt"]:
+            for ssel in ["p.excerpt", "p.summary", "div.excerpt", "div.entry-summary", "div.summary", ".entry-content p", ".post-excerpt", "p"]:
                 if best_container.select_one(ssel):
                     summary_sel = ssel
                     break
-            if not summary_sel:
-                ps = best_container.select("p")
-                if ps:
-                    summary_sel = "p"
 
-            # article content selector (from detail page - educated guess)
-            content_sel = "div.entry-content, div.post-content, article, div.article-body, div.content"
+            # content selector for detail pages
+            content_sel = "div.entry-content, div.post-content, article, div.article-body, div.content, div.single-content, div.story-content"
 
-            # pagination guess
+            # pagination
             pagination = ""
-            pager = soup.select_one(".pagination, .nav-links, nav.pagination, a.next, a[rel=next]")
-            if pager:
-                page_link = soup.select_one("a.page-numbers")
-                if page_link:
-                    href = page_link.get("href", "")
-                    page_match = re.search(r"page/(\d+)", href)
-                    if page_match:
-                        pagination = "/page/{page}/"
-                    else:
-                        num_match = re.search(r"[?&]paged?=(\d+)", href)
-                        if num_match:
-                            pagination = "?page={page}"
+            pager_link = soup.select_one("a.page-numbers, a[class*=page], .pagination a, .nav-links a")
+            if pager_link:
+                href = pager_link.get("href", "")
+                m = re.search(r"page/(\d+)", href)
+                if m:
+                    pagination = "/page/{page}/"
+                else:
+                    m = re.search(r"[?&]paged?=(\d+)", href)
+                    if m:
+                        pagination = "?page={page}"
 
             return JSONResponse({
                 "status": "ok",
