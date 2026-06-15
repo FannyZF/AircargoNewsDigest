@@ -35,11 +35,10 @@
         {% for news in recent_items[:10] %}
         <div class="card" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
             <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
-            <div class="card-meta">
-                <span class="badge badge-source">{{ news.source }}</span>
-                {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
-                {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
-            </div>
+            <div class="card-date">{{ news.published_at }}</div>
+            <div class="card-meta-row"><span class="meta-label">来源</span> <span class="badge badge-source">{{ news.source }}</span></div>
+            <div class="card-meta-row"><span class="meta-label">分类</span> {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}</div>
+            <div class="card-meta-row"><span class="meta-label">区域</span> {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}</div>
             <div class="card-summary">{{ news.summary[:200] }}</div>
         </div>
         {% endfor %}
@@ -54,9 +53,14 @@
 {% for news in cat_items %}
 <div class="card" data-source="{{ news.source }}" data-categories="{{ news.get_categories_list() | join(',') }}" data-regions="{{ news.get_regions_list() | join(',') }}">
     <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
-    <div class="card-meta">
-        <span class="badge badge-source">{{ news.source }}</span>
+    <div class="card-date">{{ news.published_at }}</div>
+    <div class="card-meta-row"><span class="meta-label">来源</span> <span class="badge badge-source">{{ news.source }}</span></div>
+    <div class="card-meta-row">
+        <span class="meta-label">分类</span>
         {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}
+    </div>
+    <div class="card-meta-row">
+        <span class="meta-label">区域</span>
         {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}
     </div>
     <div class="card-summary">{{ news.summary }}</div>
@@ -192,5 +196,8 @@ updateAll();
     background: var(--src-bg); color: var(--src-purple);
     font-size: 12px; padding: 3px 10px; border-radius: 12px;
 }
+.card-date { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.card-meta-row { font-size: 12px; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.meta-label { color: var(--text-secondary); font-size: 11px; min-width: 28px; }
 </style>
 {% endblock %}
