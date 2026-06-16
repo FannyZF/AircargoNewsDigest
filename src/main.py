@@ -261,7 +261,7 @@ def cmd_web(config: dict, _args):
             from src.utils.subscription_store import get_active_subscribers
             from src.utils.mailer import send_digest_email
             from pathlib import Path
-from datetime import datetime, timedelta
+            from datetime import datetime, timedelta
             subs = get_active_subscribers()
             if subs:
                 yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
