@@ -154,12 +154,5 @@ async function saveSmtp() {
         btn.disabled = false;
     }
 }
-    } catch(e) {
-        document.getElementById('schedule-msg').innerHTML = '<span style="color:#c62828;">保存失败</span>';
-    } finally {
-        btn.innerHTML = orig;
-        btn.disabled = false;
-    }
-}
 </script>
 {% endblock %}
