@@ -32,7 +32,7 @@ body {
 .header { text-align: center; padding: 0 0 32px; }
 .header h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
 .header .meta { font-size: 14px; color: var(--text-secondary); }
-.section-title {
+.source-section {
     font-size: 17px; font-weight: 600; margin: 28px 0 12px;
     padding-bottom: 8px; color: var(--text-secondary);
     border-bottom: 0.5px solid var(--border); letter-spacing: -0.2px;
@@ -65,15 +65,13 @@ body {
 .core-text { font-size: 14px; color: var(--text); line-height: 1.8; }
 .core-text p { margin: 0 0 6px; }
 .core-text p:last-child { margin: 0; }
-@media (prefers-color-scheme: dark) { .core-extract { background: rgba(10,132,255,0.08); } }
-.tag-cloud { text-align: center; padding: 20px 0; }
-.tag-cloud .tag { cursor: default; margin: 4px; display: inline-block; }
-.footer { text-align: center; padding: 40px 0 20px; color: var(--text-tertiary); font-size: 12px; }
+.footer { text-align: center; padding: 40px 0 20px; color: var(--text-tertiary); font-size: 12px; line-height: 1.8; }
 @media (prefers-color-scheme: dark) {
     .badge-source { background: rgba(191,90,242,0.2); }
     .badge-cat { background: rgba(48,209,88,0.18); }
     .badge-region { background: rgba(10,132,255,0.18); }
     .badge-china { background: rgba(255,69,58,0.2); }
+    .core-extract { background: rgba(10,132,255,0.08); }
 }
 @media (max-width: 640px) { body { padding: 20px 16px; } .header h1 { font-size: 24px; } }
 </style>
@@ -83,13 +81,14 @@ body {
     <h1>空运新闻速递</h1>
     <div class="meta">{{ date_display }} | 共 {{ total_count }} 条新闻 | 来源: {{ sources }}</div>
 </div>
-{% for cat_id, cat_name, cat_items in categories %}{% if cat_items %}
-<div class="section-title">{{ cat_name }} ({{ cat_items|length }})</div>
-{% for news in cat_items %}
+
+{% for source_name, source_items in source_groups %}
+<div class="source-section">{{ source_name }} ({{ source_items|length }})</div>
+{% for news in source_items %}
 <div class="card">
     <div class="card-title"><a href="{{ news.url }}" target="_blank">{{ news.translated_title or news.title }}</a></div>
     <div class="card-meta-rows">
-        <div class="meta-row"><span class="meta-label">来源</span> <span class="badge badge-source">{{ news.source }}</span>{% if news.published_at %} <span class="meta-date">{{ news.published_at[:10] }}</span>{% endif %}</div>
+        <div class="meta-row"><span class="meta-label">日期</span> <span class="meta-date">{{ news.published_at[:10] if news.published_at else '' }}</span></div>
         <div class="meta-row"><span class="meta-label">分类</span> {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}</div>
         <div class="meta-row"><span class="meta-label">区域</span> {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}</div>
     </div>
@@ -104,13 +103,9 @@ body {
     <button class="expand-btn" onclick="this.nextElementSibling.classList.toggle('show');this.textContent=this.nextElementSibling.classList.contains('show')?'收起全文 ▲':'展开全文 ▼'">展开全文 ▼</button>
     <div class="card-body">{{ news.translated_text or news.original_text }}</div>
 </div>
-{% endfor %}{% endif %}{% endfor %}
-{% if all_keywords %}
-<div class="tag-cloud">
-    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:12px;">关键词云</div>
-    {% for kw, size in all_keywords %}<span class="tag" style="font-size:{{ size }}px;">{{ kw }}</span>{% endfor %}
-</div>
-{% endif %}
-<div class="footer">空运新闻速递 | {{ date_str }}</div>
+{% endfor %}
+{% endfor %}
+
+<div class="footer">内容为"空运视界"公众号基于公开平台信息整理 | {{ date_str }}</div>
 </body>
 </html>

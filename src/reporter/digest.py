@@ -1,6 +1,6 @@
-from collections import Counter
 from datetime import datetime
 from pathlib import Path
+from collections import OrderedDict
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -9,11 +9,6 @@ from src.storage.models import CATEGORY_LABELS, REGION_LABELS
 from src.utils.logger import setup_logger
 
 logger = setup_logger("reporter")
-
-CATEGORY_ORDER = [
-    ("1", "运价"), ("2", "运力"), ("3", "航线"), ("4", "政策法规"),
-    ("5", "企业动态"), ("6", "市场报告"), ("7", "技术与可持续"), ("8", "其他"),
-]
 
 
 class DigestReporter:
@@ -38,28 +33,20 @@ class DigestReporter:
             logger.warning("No processed items found for %s", date_str)
             return None
 
-        categories = []
-        for cat_id, cat_name in CATEGORY_ORDER:
-            cat_items = [i for i in items if cat_id in i.get_categories_list()]
-            categories.append((cat_id, cat_name, cat_items))
-
-        all_kw_counter = Counter()
+        # group by source, preserve order
+        source_order = OrderedDict()
         for item in items:
-            for kw in item.get_keywords_list():
-                all_kw_counter[kw] += 1
-        total = sum(all_kw_counter.values()) or 1
-        all_keywords = []
-        for kw, count in all_kw_counter.most_common(30):
-            size = max(12, min(22, 12 + int(10 * count / total * 20)))
-            all_keywords.append((kw, size))
+            if item.source not in source_order:
+                source_order[item.source] = []
+            source_order[item.source].append(item)
 
-        sources = ", ".join(sorted(set(i.source for i in items)))
+        sources = ", ".join(source_order.keys())
         date_display = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y年%m月%d日")
 
         html = self.template.render(
             date_str=date_str, date_display=date_display,
-            total_count=len(items), categories=categories,
-            all_keywords=all_keywords, sources=sources,
+            total_count=len(items), source_groups=list(source_order.items()),
+            sources=sources,
         )
 
         filename_pattern = self.config.get("output", {}).get("filename_pattern", "daily_{date}.html")
