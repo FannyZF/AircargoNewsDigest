@@ -22,23 +22,45 @@
     </div>
 </div>
 
-<div class="section-title">操作</div>
-<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
-    <button class="btn btn-outline" onclick="trigger('collect')" id="btn-collect">抓取新闻</button>
-    <button class="btn btn-outline" onclick="trigger('backfill')" id="btn-backfill">历史回溯 (5/1起)</button>
-    <button class="btn btn-outline" onclick="trigger('process')" id="btn-process">LLM 处理</button>
-    <button class="btn btn-outline" onclick="trigger('report')" id="btn-report">生成日报</button>
-    <button class="btn btn-primary" onclick="trigger('run')" id="btn-run">一键全流程</button>
+<div style="margin-bottom:20px;">
+    <button class="btn btn-danger" onclick="restartService()" id="btn-restart">重启服务</button>
+    <span style="color:var(--text-tertiary);font-size:12px;margin-left:12px;">修改来源/定时后需要重启</span>
 </div>
 
-<div style="margin-top:8px;">
-    <button class="btn btn-danger" onclick="restartService()" id="btn-restart" style="font-size:13px;">重启服务</button>
-    <span style="color:var(--text-secondary);font-size:12px;margin-left:8px;">添加来源后需重启生效</span>
+<div style="margin-top:6px;">
+    <a href="#" onclick="toggleAdvanced();return false;" id="advanced-toggle" style="font-size:13px;color:var(--text-tertiary);text-decoration:none;">
+        高级操作 &#9660;
+    </a>
 </div>
+
+<div id="advanced-panel" style="display:none;margin-top:16px;">
+    <div class="section-title">高级操作</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:480px;">
+        <button class="btn btn-outline" onclick="trigger('collect')" id="btn-collect">抓取新闻</button>
+        <button class="btn btn-outline" onclick="trigger('process')" id="btn-process">LLM 处理</button>
+        <button class="btn btn-outline" onclick="trigger('report')" id="btn-report">生成日报</button>
+        <button class="btn btn-primary" onclick="trigger('run')" id="btn-run">一键全流程</button>
+    </div>
+    <div style="margin-top:10px;">
+        <button class="btn btn-outline btn-sm" onclick="trigger('backfill')" id="btn-backfill">历史回溯 (5/1起)</button>
+    </div>
+    <p style="color:var(--text-tertiary);font-size:12px;margin-top:12px;">日常更新由定时器自动完成 (23:00)，无需手动操作。</p>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
+function toggleAdvanced() {
+    var panel = document.getElementById('advanced-panel');
+    var toggle = document.getElementById('advanced-toggle');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        toggle.innerHTML = '高级操作 &#9650;';
+    } else {
+        panel.style.display = 'none';
+        toggle.innerHTML = '高级操作 &#9660;';
+    }
+}
+
 function showToast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -46,29 +68,29 @@ function showToast(msg, type) {
     t.style.display = 'block';
     setTimeout(() => { t.style.display = 'none'; }, 3000);
 }
+
 async function trigger(action) {
     const btn = document.getElementById('btn-' + action);
     const orig = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span>运行中...';
+    btn.innerHTML = '<span class="spinner"></span>';
     btn.disabled = true;
     try {
         const resp = await fetch('/api/trigger/' + action, {method:'POST'});
         const data = await resp.json();
         showToast(data.message, 'success');
     } catch(e) {
-        showToast('操作失败: ' + e.message, 'error');
+        showToast('操作失败', 'error');
     } finally {
         btn.innerHTML = orig;
         btn.disabled = false;
         setTimeout(() => location.reload(), 2000);
     }
 }
+
 async function restartService() {
     if (!confirm('确定重启服务？页面会在几秒后自动恢复。')) return;
-    try {
-        await fetch('/api/trigger/restart', {method:'POST'});
-    } catch(e) {}
-    showToast('服务重启中，请等待...', 'success');
+    try { await fetch('/api/trigger/restart', {method:'POST'}); } catch(e) {}
+    showToast('服务重启中...', 'success');
     setTimeout(() => { location.reload(); }, 5000);
     setTimeout(() => { location.reload(); }, 10000);
 }
