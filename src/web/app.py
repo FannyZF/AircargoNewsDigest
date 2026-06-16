@@ -7,6 +7,7 @@ import json
 from fastapi import FastAPI, Request, Query, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from jinja2 import Environment, FileSystemLoader
 
 from src.storage.db import Database
@@ -32,6 +33,12 @@ REGION_ORDER = ["China", "Asia", "Europe", "NorthAmerica", "SouthAmerica", "Midd
 
 def create_app(config: dict) -> FastAPI:
     app = FastAPI(title="空运新闻速递", version="1.0.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     db = Database()
     scraper = Scraper(config)
 
@@ -443,6 +450,32 @@ def create_app(config: dict) -> FastAPI:
         if ok:
             return JSONResponse({"status": "ok", "message": f"已退订: {email}"})
         return JSONResponse({"detail": "未找到该邮箱"}, status_code=400)
+
+    # Public API for external websites / WeChat
+    @app.get("/api/public/subscribe")
+    async def public_subscribe_get(email: str = Query("")):
+        email = email.strip().lower()
+        if not email or "@" not in email:
+            return JSONResponse({"code": 1, "msg": "邮箱地址无效"}, status_code=400)
+        ok = add_subscriber(email)
+        if ok:
+            return JSONResponse({"code": 0, "msg": f"订阅成功: {email}"})
+        return JSONResponse({"code": 2, "msg": "该邮箱已订阅"})
+
+    @app.get("/api/public/unsubscribe")
+    async def public_unsubscribe_get(email: str = Query("")):
+        email = email.strip().lower()
+        if not email or "@" not in email:
+            return JSONResponse({"code": 1, "msg": "邮箱地址无效"}, status_code=400)
+        ok = remove_subscriber(email)
+        if ok:
+            return JSONResponse({"code": 0, "msg": f"已退订: {email}"})
+        return JSONResponse({"code": 2, "msg": "未找到该邮箱"})
+
+    @app.get("/s", response_class=HTMLResponse)
+    async def standalone_subscribe(request: Request):
+        count = len(get_active_subscribers())
+        return render_template("standalone_sub.html", {"request": request, "count": count})
 
     @app.get("/admin", response_class=HTMLResponse)
     async def admin(request: Request):

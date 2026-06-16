@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>空运新闻速递 - 邮件订阅</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f5f7; color: #1d1d1f; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+    -webkit-font-smoothing: antialiased;
+}
+@media (prefers-color-scheme: dark) {
+    body { background: #000; color: #f5f5f7; }
+}
+.card {
+    background: #fff; border-radius: 20px; padding: 32px 24px;
+    max-width: 400px; width: 100%; box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    border: 0.5px solid #d2d2d7; text-align: center;
+}
+@media (prefers-color-scheme: dark) {
+    .card { background: #1c1c1e; border-color: #38383a; }
+}
+.icon { font-size: 48px; margin-bottom: 16px; }
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+.subtitle { font-size: 14px; color: #86868b; margin-bottom: 24px; line-height: 1.5; }
+input {
+    width: 100%; padding: 12px 16px; border: 0.5px solid #d2d2d7;
+    border-radius: 12px; font-size: 16px; font-family: inherit;
+    outline: none; margin-bottom: 12px; background: #f5f5f7;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+@media (prefers-color-scheme: dark) {
+    input { background: #2c2c2e; border-color: #38383a; color: #f5f5f7; }
+}
+input:focus { border-color: #0071e3; box-shadow: 0 0 0 3px rgba(0,113,227,0.15); }
+.btn {
+    width: 100%; padding: 12px; border-radius: 12px; font-size: 16px;
+    font-weight: 600; border: none; cursor: pointer; font-family: inherit;
+    transition: all 0.15s; margin-bottom: 8px;
+}
+.btn-sub { background: #0071e3; color: #fff; }
+.btn-sub:hover { background: #0077ed; }
+.btn-sub:disabled { opacity: 0.6; }
+.btn-unsub { background: transparent; color: #ff3b30; border: 1px solid #ff3b30; }
+.btn-unsub:hover { background: rgba(255,59,48,0.06); }
+.msg { font-size: 13px; margin-top: 8px; min-height: 20px; }
+.msg.success { color: #34c759; }
+.msg.error { color: #ff3b30; }
+.footer { margin-top: 20px; font-size: 11px; color: #aeaeb2; }
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="icon">&#9992;</div>
+    <h1>空运新闻速递</h1>
+    <div class="subtitle">每日空运行业新闻精选，自动发送到您的邮箱。当前已有 <strong>{{ count }}</strong> 位订阅者。</div>
+
+    <input type="email" id="email-input" placeholder="输入邮箱地址" autocomplete="email"/>
+    <button class="btn btn-sub" onclick="doSubscribe()" id="sub-btn">订阅日报</button>
+    <button class="btn btn-unsub" onclick="doUnsubscribe()" id="unsub-btn">退订</button>
+    <div class="msg" id="msg"></div>
+    <div class="footer">内容为"空运视界"公众号基于公开平台信息整理</div>
+</div>
+
+<script>
+function showMsg(text, cls) {
+    var el = document.getElementById('msg');
+    el.textContent = text; el.className = 'msg ' + cls;
+}
+
+async function doSubscribe() {
+    var email = document.getElementById('email-input').value.trim();
+    if (!email || email.indexOf('@') === -1) { showMsg('请输入有效的邮箱地址', 'error'); return; }
+    var btn = document.getElementById('sub-btn');
+    btn.innerHTML = '提交中...'; btn.disabled = true;
+    try {
+        var resp = await fetch('/api/public/subscribe?email=' + encodeURIComponent(email));
+        var data = await resp.json();
+        showMsg(data.msg, data.code === 0 ? 'success' : 'error');
+    } catch(e) { showMsg('网络错误，请重试', 'error'); }
+    finally { btn.innerHTML = '订阅日报'; btn.disabled = false; }
+}
+
+async function doUnsubscribe() {
+    var email = document.getElementById('email-input').value.trim();
+    if (!email || email.indexOf('@') === -1) { showMsg('请输入有效的邮箱地址', 'error'); return; }
+    if (!confirm('确定退订？')) return;
+    var btn = document.getElementById('unsub-btn');
+    btn.innerHTML = '提交中...'; btn.disabled = true;
+    try {
+        var resp = await fetch('/api/public/unsubscribe?email=' + encodeURIComponent(email));
+        var data = await resp.json();
+        showMsg(data.msg, data.code === 0 ? 'success' : 'error');
+    } catch(e) { showMsg('网络错误，请重试', 'error'); }
+    finally { btn.innerHTML = '退订'; btn.disabled = false; }
+}
+</script>
+</body>
+</html>
