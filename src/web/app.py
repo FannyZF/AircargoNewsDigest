@@ -108,15 +108,16 @@ def create_app(config: dict) -> FastAPI:
         f = output_dir / f"daily_{date_str}.html"
         if not f.exists():
             return JSONResponse({"detail": f"{date_str} 日报文件不存在"}, status_code=404)
-        def _run():
-            subs = get_active_subscribers()
-            if subs:
-                result = send_digest_email(subs, f, date_str)
-                logger.info("Manual push result: %s", result)
-            else:
-                logger.info("No subscribers to push to")
-        threading.Thread(target=_run, daemon=True).start()
+        smtp_cfg = load_smtp_config()
+        if not smtp_cfg.get("host"):
+            return JSONResponse({"detail": "SMTP 未配置，请先在设置页面配置邮件服务器"}, status_code=400)
         sub_count = len(get_active_subscribers())
+        if sub_count == 0:
+            return JSONResponse({"detail": "没有订阅者，请先在订阅页面添加"}, status_code=400)
+        def _run():
+            result = send_digest_email(get_active_subscribers(), f, date_str)
+            logger.info("Push result: %s", result)
+        threading.Thread(target=_run, daemon=True).start()
         return JSONResponse({"status": "started", "message": f"正在推送 {date_str} 日报给 {sub_count} 位订阅者"})
 
     @app.get("/search", response_class=HTMLResponse)
