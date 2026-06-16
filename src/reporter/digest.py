@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from collections import OrderedDict
 
@@ -24,16 +24,20 @@ class DigestReporter:
         self.jinja.globals["REGION_LABELS"] = REGION_LABELS
         self.template = self.jinja.get_template("daily.html.j2")
 
-    def generate(self, date_str: str = None) -> str | None:
+    def generate(self, date_str: str = None, collection_date: str = None) -> str | None:
+        # date_str = display date (news date, usually yesterday)
+        # collection_date = actual collected_at date to query (usually today)
+        now = datetime.now()
         if date_str is None:
-            date_str = datetime.now().strftime("%Y-%m-%d")
+            date_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        if collection_date is None:
+            collection_date = now.strftime("%Y-%m-%d")
 
-        items = self.db.get_processed_by_date(date_str)
+        items = self.db.get_processed_by_date(collection_date)
         if not items:
-            logger.warning("No processed items found for %s", date_str)
+            logger.warning("No processed items found for %s", collection_date)
             return None
 
-        # group by source, preserve order
         source_order = OrderedDict()
         for item in items:
             if item.source not in source_order:

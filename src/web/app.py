@@ -17,8 +17,8 @@ from src.reporter.digest import DigestReporter
 from src.utils.logger import setup_logger
 from src.utils.key_store import load_api_key, save_api_key
 from src.utils.schedule_store import load_schedule, save_schedule
-from src.utils.subscription_store import add_subscriber, remove_subscriber, get_active_subscribers
-from src.utils.mailer import save_smtp_config, load_smtp_config
+from src.utils.subscription_store import add_subscriber, remove_subscriber, get_active_subscribers, load_subscribers
+from src.utils.mailer import save_smtp_config, load_smtp_config, send_digest_email
 
 logger = setup_logger("web")
 
@@ -86,6 +86,38 @@ def create_app(config: dict) -> FastAPI:
                 display = date_str
             digest_files.append({"date": date_str, "display": display, "filename": f.name})
         return render_template("history.html", {"request": request, "digest_files": digest_files})
+
+    @app.delete("/api/history/{date_str}")
+    async def delete_digest(date_str: str):
+        f = output_dir / f"daily_{date_str}.html"
+        if f.exists():
+            f.unlink()
+            return JSONResponse({"status": "ok", "message": f"已删除 {date_str} 日报"})
+        return JSONResponse({"detail": "文件不存在"}, status_code=404)
+
+    @app.post("/api/history/regenerate/{date_str}")
+    async def regenerate_digest(date_str: str):
+        def _run():
+            reporter = DigestReporter(config, db)
+            reporter.generate(date_str, collection_date=date_str)
+        threading.Thread(target=_run, daemon=True).start()
+        return JSONResponse({"status": "started", "message": f"正在重新生成 {date_str} 日报"})
+
+    @app.post("/api/history/push/{date_str}")
+    async def push_digest(date_str: str):
+        f = output_dir / f"daily_{date_str}.html"
+        if not f.exists():
+            return JSONResponse({"detail": f"{date_str} 日报文件不存在"}, status_code=404)
+        def _run():
+            subs = get_active_subscribers()
+            if subs:
+                result = send_digest_email(subs, f, date_str)
+                logger.info("Manual push result: %s", result)
+            else:
+                logger.info("No subscribers to push to")
+        threading.Thread(target=_run, daemon=True).start()
+        sub_count = len(get_active_subscribers())
+        return JSONResponse({"status": "started", "message": f"正在推送 {date_str} 日报给 {sub_count} 位订阅者"})
 
     @app.get("/search", response_class=HTMLResponse)
     async def search_page(request: Request):
@@ -391,7 +423,7 @@ def create_app(config: dict) -> FastAPI:
 
     @app.get("/api/subscribe/count")
     async def subscribe_count():
-        return JSONResponse({"count": len(get_active_subscribers())})
+        return JSONResponse({"count": len(get_active_subscribers()), "subscribers": load_subscribers()})
 
     @app.post("/api/subscribe")
     async def subscribe(data: dict = Body(...)):

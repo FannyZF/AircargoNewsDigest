@@ -6,20 +6,94 @@
 {% if digest_files %}
 <div style="display:grid;gap:10px;">
 {% for f in digest_files %}
-<div class="card" style="display:flex;justify-content:space-between;align-items:center;border-left:3px solid var(--accent);">
+<div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
         <span style="font-weight:600;">{{ f.display }}</span>
-        <span style="color:var(--text-secondary);font-size:12px;margin-left:12px;">{{ f.filename }}</span>
+        <span style="color:var(--text-tertiary);font-size:12px;margin-left:10px;">{{ f.filename }}</span>
     </div>
-    <a href="/digests/{{ f.filename }}" target="_blank" class="btn btn-outline btn-sm">查看</a>
+    <div style="display:flex;gap:6px;align-items:center;">
+        <a href="/digests/{{ f.filename }}" target="_blank" class="btn btn-outline btn-sm">查看</a>
+        <button class="btn btn-outline btn-sm" onclick="pushDigest('{{ f.date }}')" id="btn-push-{{ f.date }}">推送</button>
+        <button class="btn btn-outline btn-sm" onclick="regenerateDigest('{{ f.date }}')" id="btn-regen-{{ f.date }}">重新生成</button>
+        <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;" onclick="deleteDigest('{{ f.date }}')">删除</button>
+    </div>
 </div>
 {% endfor %}
 </div>
-{% else %}
-<div class="empty-state">
-    <p style="font-size:18px;">暂无历史日报</p>
-    <p>运行 <code>python -m src.main run</code> 生成第一份日报</p>
+
+<div class="card" style="margin-top:20px;padding:16px 20px;">
+    <div style="font-weight:600;font-size:14px;margin-bottom:8px;">按日期重新生成</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="regen-date" style="width:180px;"/>
+        <button class="btn btn-outline btn-sm" onclick="regenerateByDate()">生成</button>
+        <button class="btn btn-primary btn-sm" onclick="pushByDate()">推送到订阅者</button>
+    </div>
+    <div id="regen-msg" style="font-size:13px;margin-top:8px;"></div>
 </div>
+{% else %}
+<div class="empty-state"><p>暂无历史日报</p></div>
 {% endif %}
 
+{% endblock %}
+{% block scripts %}
+<script>
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3000);
+}
+function setLoading(id) {
+    const b = document.getElementById(id);
+    if (b) { b.innerHTML = '<span class="spinner"></span>'; b.disabled = true; }
+}
+function resetBtn(id, text) {
+    const b = document.getElementById(id);
+    if (b) { b.innerHTML = text; b.disabled = false; }
+}
+
+async function deleteDigest(date) {
+    if (!confirm('确定删除 ' + date + ' 日报？')) return;
+    try {
+        const resp = await fetch('/api/history/' + date, {method:'DELETE'});
+        const data = await resp.json();
+        showToast(resp.ok ? data.message : data.detail, resp.ok ? 'success' : 'error');
+        setTimeout(() => location.reload(), 1000);
+    } catch(e) { showToast('操作失败', 'error'); }
+}
+
+async function regenerateDigest(date) {
+    const id = 'btn-regen-' + date;
+    setLoading(id);
+    try {
+        const resp = await fetch('/api/history/regenerate/' + date, {method:'POST'});
+        const data = await resp.json();
+        showToast(data.message, 'success');
+    } catch(e) { showToast('操作失败', 'error'); }
+    finally { setTimeout(() => location.reload(), 2000); }
+}
+
+async function pushDigest(date) {
+    const id = 'btn-push-' + date;
+    setLoading(id);
+    try {
+        const resp = await fetch('/api/history/push/' + date, {method:'POST'});
+        const data = await resp.json();
+        showToast(data.message, 'success');
+    } catch(e) { showToast('操作失败', 'error'); }
+    finally { setTimeout(() => location.reload(), 2000); }
+}
+
+function regenerateByDate() {
+    const date = document.getElementById('regen-date').value;
+    if (!date) return;
+    regenerateDigest(date);
+}
+
+function pushByDate() {
+    const date = document.getElementById('regen-date').value;
+    if (!date) return;
+    pushDigest(date);
+}
+</script>
 {% endblock %}

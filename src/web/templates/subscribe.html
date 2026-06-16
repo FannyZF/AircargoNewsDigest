@@ -24,7 +24,15 @@
     <div id="unsub-msg" style="font-size:13px;"></div>
 </div>
 
-<p style="color:var(--text-tertiary);font-size:12px;margin-top:16px;">当前订阅人数: {{ count }} | 每天 23:00 定时发送</p>
+<p style="color:var(--text-tertiary);font-size:12px;margin-top:16px;">当前订阅人数: <span id="sub-count">{{ count }}</span> | 每天定时发送</p>
+
+<div class="card" style="max-width:500px;margin-top:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="font-size:16px;font-weight:600;">订阅者列表</h3>
+        <button class="btn btn-outline btn-sm" onclick="loadSubscribers()">刷新</button>
+    </div>
+    <div id="subscribers-list" style="font-size:13px;color:var(--text-secondary);">点击刷新查看</div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -76,5 +84,21 @@ async function unsubscribe() {
         btn.disabled = false;
     }
 }
+async function loadSubscribers() {
+    try {
+        const resp = await fetch('/api/subscribe/count');
+        const data = await resp.json();
+        document.getElementById('sub-count').textContent = data.count;
+        const list = document.getElementById('subscribers-list');
+        if (data.subscribers && data.subscribers.length) {
+            list.innerHTML = data.subscribers.map(function(s) {
+                return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);"><span>' + s.email + '</span><span style="color:var(--green);">' + (s.active ? '已激活' : '已停用') + '</span></div>';
+            }).join('');
+        } else {
+            list.innerHTML = '<span style="color:var(--text-tertiary);">暂无订阅者</span>';
+        }
+    } catch(e) {}
+}
+loadSubscribers();
 </script>
 {% endblock %}
