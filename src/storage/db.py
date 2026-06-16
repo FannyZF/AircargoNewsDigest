@@ -37,6 +37,7 @@ class Database:
                     translated_title TEXT,
                     translated_text TEXT,
                     summary TEXT,
+                    core_extract TEXT DEFAULT '',
                     keywords TEXT,
                     categories TEXT DEFAULT '[]',
                     regions TEXT DEFAULT '[]',
@@ -58,6 +59,10 @@ class Database:
                 conn.execute("ALTER TABLE news ADD COLUMN regions TEXT DEFAULT '[]'")
             except sqlite3.OperationalError:
                 pass
+            try:
+                conn.execute("ALTER TABLE news ADD COLUMN core_extract TEXT DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass
 
     def url_exists(self, url: str) -> bool:
         with self._conn() as conn:
@@ -69,14 +74,14 @@ class Database:
             conn.execute(
                 """INSERT OR IGNORE INTO news
                    (id, url, title, original_text, source, published_at, collected_at,
-                    translated_title, translated_text, summary, keywords,
+                    translated_title, translated_text, summary, core_extract, keywords,
                     categories, regions, status, processed_at, error_message)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     item.id, item.url, item.title, item.original_text, item.source,
                     item.published_at, item.collected_at,
                     item.translated_title, item.translated_text, item.summary,
-                    item.keywords, item.categories, item.regions,
+                    item.core_extract, item.keywords, item.categories, item.regions,
                     item.status, item.processed_at, item.error_message,
                 ),
             )
@@ -93,12 +98,12 @@ class Database:
         with self._conn() as conn:
             conn.execute(
                 """UPDATE news SET
-                   translated_title=?, translated_text=?, summary=?, keywords=?,
-                   categories=?, regions=?, status=?, processed_at=?, error_message=?
+                   translated_title=?, translated_text=?, summary=?, core_extract=?,
+                   keywords=?, categories=?, regions=?, status=?, processed_at=?, error_message=?
                    WHERE id=?""",
                 (
                     item.translated_title, item.translated_text, item.summary,
-                    item.keywords, item.categories, item.regions,
+                    item.core_extract, item.keywords, item.categories, item.regions,
                     item.status, item.processed_at, item.error_message, item.id,
                 ),
             )
@@ -139,6 +144,7 @@ class Database:
             translated_title=_get("translated_title") or "",
             translated_text=_get("translated_text") or "",
             summary=_get("summary") or "",
+            core_extract=_get("core_extract") or "",
             keywords=_get("keywords") or "[]",
             categories=_get("categories") or "[]",
             regions=_get("regions") or "[]",

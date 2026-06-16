@@ -60,6 +60,12 @@ body {
 .expand-btn { color: var(--accent); font-size: 13px; cursor: pointer; border: none; background: none; padding: 6px 0; font-weight: 500; }
 .card-body { display: none; margin-top: 12px; padding: 16px 18px; background: var(--fill); border-radius: 12px; font-size: 14px; line-height: 1.7; border: 0.5px solid var(--border); }
 .card-body.show { display: block; }
+.core-extract { margin: 12px 0; padding: 14px 16px; background: rgba(0,113,227,0.04); border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; }
+.core-label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--accent); letter-spacing: 0.5px; margin-bottom: 6px; }
+.core-text { font-size: 14px; color: var(--text); line-height: 1.8; }
+.core-text p { margin: 0 0 6px; }
+.core-text p:last-child { margin: 0; }
+@media (prefers-color-scheme: dark) { .core-extract { background: rgba(10,132,255,0.08); } }
 .tag-cloud { text-align: center; padding: 20px 0; }
 .tag-cloud .tag { cursor: default; margin: 4px; display: inline-block; }
 .footer { text-align: center; padding: 40px 0 20px; color: var(--text-tertiary); font-size: 12px; }
@@ -88,6 +94,12 @@ body {
         <div class="meta-row"><span class="meta-label">区域</span> {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}</div>
     </div>
     <div class="card-summary">{{ news.summary }}</div>
+    {% if news.core_extract %}
+    <div class="core-extract">
+        <div class="core-label">新闻核心</div>
+        <div class="core-text">{% for line in news.core_extract.split('\n') %}{% if line.strip() %}<p>{{ line.strip() }}</p>{% endif %}{% endfor %}</div>
+    </div>
+    {% endif %}
     <div class="card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
     <button class="expand-btn" onclick="this.nextElementSibling.classList.toggle('show');this.textContent=this.nextElementSibling.classList.contains('show')?'收起全文 ▲':'展开全文 ▼'">展开全文 ▼</button>
     <div class="card-body">{{ news.translated_text or news.original_text }}</div>

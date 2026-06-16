@@ -28,6 +28,7 @@ class NewsItem:
     translated_title: str = ""
     translated_text: str = ""
     summary: str = ""
+    core_extract: str = ""
     keywords: str = "[]"
     categories: str = "[]"
     regions: str = "[]"

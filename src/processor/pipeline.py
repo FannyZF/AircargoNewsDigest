@@ -46,6 +46,7 @@ class ProcessingPipeline:
                     item.translated_title = result.get("translated_title", "")
                     item.translated_text = result.get("translated_text", "")
                     item.summary = result.get("summary", "")
+                    item.core_extract = result.get("core_extract", "")
                     item.keywords = json.dumps(result.get("keywords", [])[:5], ensure_ascii=False)
                     item.categories = json.dumps(result.get("categories", []), ensure_ascii=False)
                     item.regions = json.dumps(result.get("regions", []), ensure_ascii=False)

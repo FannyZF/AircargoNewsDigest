@@ -210,6 +210,24 @@ body {
 }
 .card-body.show { display: block; }
 
+/* CORE EXTRACT */
+.core-extract {
+    margin: 12px 0; padding: 14px 16px;
+    background: rgba(0,113,227,0.04); border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.core-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    color: var(--accent); letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.core-text { font-size: 14px; color: var(--text); line-height: 1.8; }
+.core-text p { margin: 0 0 6px; }
+.core-text p:last-child { margin: 0; }
+
+@media (prefers-color-scheme: dark) {
+    .core-extract { background: rgba(10,132,255,0.08); }
+}
+
 /* SECTION TITLE */
 .section-title {
     font-size: 17px; font-weight: 600; margin: 28px 0 12px;

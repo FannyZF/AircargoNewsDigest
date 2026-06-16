@@ -40,7 +40,10 @@
                 <div class="meta-row"><span class="meta-label">分类</span> {% for label in news.get_category_labels() %}<span class="badge badge-cat">{{ label }}</span>{% endfor %}</div>
                 <div class="meta-row"><span class="meta-label">区域</span> {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}</div>
             </div>
-            <div class="card-summary">{{ news.summary[:200] }}</div>
+            <div class="card-summary">{{ news.summary }}</div>
+            {% if news.core_extract %}
+            <div class="core-extract"><div class="core-label">新闻核心</div><div class="core-text">{% for line in news.core_extract.split('\n') %}{% if line.strip() %}<p>{{ line.strip() }}</p>{% endif %}{% endfor %}</div></div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
@@ -60,6 +63,12 @@
         <div class="meta-row"><span class="meta-label">区域</span> {% for r in news.get_regions_list() %}<span class="badge {{ 'badge-china' if r == 'China' else 'badge-region' }}">{{ REGION_LABELS[r] }}</span>{% endfor %}</div>
     </div>
     <div class="card-summary">{{ news.summary }}</div>
+    {% if news.core_extract %}
+    <div class="core-extract">
+        <div class="core-label">新闻核心</div>
+        <div class="core-text">{% for line in news.core_extract.split('\n') %}{% if line.strip() %}<p>{{ line.strip() }}</p>{% endif %}{% endfor %}</div>
+    </div>
+    {% endif %}
     <div class="card-tags">{% for kw in news.get_keywords_list() %}<span class="tag">{{ kw }}</span>{% endfor %}</div>
     <button class="expand-btn" onclick="toggleCardBody(this)">展开全文 ▼</button>
     <div class="card-body">{{ news.translated_text or news.original_text }}</div>

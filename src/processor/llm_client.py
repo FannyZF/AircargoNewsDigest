@@ -40,10 +40,17 @@ SYSTEM_PROMPT = """你是一名资深的航空货运行业新闻编辑，拥有1
   "translated_title": "准确流畅的中文标题，保留核心数据",
   "translated_text": "忠实原文的中文翻译，专业术语准确",
   "summary": "3-5句话的中文摘要，包含：事件、主体、数据、影响",
+  "core_extract": "从原文中摘取2-3句最核心的原句，翻译为中文。保留关键数据、人名、机构名",
   "keywords": ["关键词1", "关键词2", "关键词3", "关键词4", "关键词5"],
   "categories": ["分类编号1", "分类编号2"],
   "regions": ["区域1", "区域2"]
 }
+
+## core_extract 要求
+- 严格从原文中选取2-3句最能代表新闻核心事实的句子
+- 翻译为流畅中文，保留数据、专有名词
+- 每句用换行符分隔
+- 示例："国泰货运(Cathay Pacific Cargo)宣布新增香港-芝加哥全货机航线，每周三班，由B747-8F执飞。\n该航线预计每年增加约1.2万吨货运运力。"
 
 ## 区域体系（regions字段，可多选）
 选择新闻涉及的地理区域：
@@ -129,7 +136,7 @@ class LLMClient:
 
                 result = json.loads(raw)
 
-                required = ["translated_title", "translated_text", "summary", "keywords", "categories", "regions"]
+                required = ["translated_title", "translated_text", "summary", "core_extract", "keywords", "categories", "regions"]
                 for field in required:
                     if field not in result:
                         raise ValueError(f"Missing field: {field}")
