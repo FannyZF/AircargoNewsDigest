@@ -208,12 +208,12 @@ def cmd_process(config: dict, _args):
 def cmd_report(config: dict, args):
     db = Database()
     reporter = DigestReporter(config, db)
-    date_str = args.date or datetime.now().strftime("%Y-%m-%d")
+    date_str = getattr(args, 'date', None) if args else None
     path = reporter.generate(date_str)
     if path:
         logger.info("Report generated: %s", path)
     else:
-        logger.warning("No report generated for %s", date_str)
+        logger.warning("No report generated for %s", date_str or "today")
 
 
 def cmd_run(config: dict, args):
