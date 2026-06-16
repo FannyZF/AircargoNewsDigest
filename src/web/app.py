@@ -17,6 +17,8 @@ from src.reporter.digest import DigestReporter
 from src.utils.logger import setup_logger
 from src.utils.key_store import load_api_key, save_api_key
 from src.utils.schedule_store import load_schedule, save_schedule
+from src.utils.subscription_store import add_subscriber, remove_subscriber, get_active_subscribers
+from src.utils.mailer import save_smtp_config, load_smtp_config
 
 logger = setup_logger("web")
 
@@ -132,6 +134,11 @@ def create_app(config: dict) -> FastAPI:
     @app.get("/sources", response_class=HTMLResponse)
     async def sources_page(request: Request):
         return render_template("sources.html", {"request": request, "sources": config.get("sources", [])})
+
+    @app.get("/subscribe", response_class=HTMLResponse)
+    async def subscribe_page(request: Request):
+        count = len(get_active_subscribers())
+        return render_template("subscribe.html", {"request": request, "count": count})
 
     @app.post("/api/sources/detect")
     async def detect_selectors(data: dict = Body(...)):
@@ -369,6 +376,40 @@ def create_app(config: dict) -> FastAPI:
             return JSONResponse({"detail": "时间格式无效，请使用 HH:MM"}, status_code=400)
         save_schedule(time_str)
         return JSONResponse({"status": "ok", "message": f"定时已更新: 每天 {time_str} (重启服务后生效)"})
+
+    @app.post("/api/settings/smtp")
+    async def set_smtp(data: dict = Body(...)):
+        host = data.get("host", "").strip()
+        port = int(data.get("port", 465))
+        user = data.get("user", "").strip()
+        password = data.get("password", "").strip()
+        sender = data.get("sender", "").strip()
+        if not host or not user or not password or not sender:
+            return JSONResponse({"detail": "所有 SMTP 字段必填"}, status_code=400)
+        save_smtp_config(host, port, user, password, sender)
+        return JSONResponse({"status": "ok", "message": "SMTP 配置已保存"})
+
+    @app.get("/api/subscribe/count")
+    async def subscribe_count():
+        return JSONResponse({"count": len(get_active_subscribers())})
+
+    @app.post("/api/subscribe")
+    async def subscribe(data: dict = Body(...)):
+        email = data.get("email", "").strip().lower()
+        if not email or "@" not in email:
+            return JSONResponse({"detail": "邮箱地址无效"}, status_code=400)
+        ok = add_subscriber(email)
+        if ok:
+            return JSONResponse({"status": "ok", "message": f"订阅成功: {email}"})
+        return JSONResponse({"detail": "该邮箱已订阅"}, status_code=400)
+
+    @app.post("/api/unsubscribe")
+    async def unsubscribe(data: dict = Body(...)):
+        email = data.get("email", "").strip().lower()
+        ok = remove_subscriber(email)
+        if ok:
+            return JSONResponse({"status": "ok", "message": f"已退订: {email}"})
+        return JSONResponse({"detail": "未找到该邮箱"}, status_code=400)
 
     @app.get("/admin", response_class=HTMLResponse)
     async def admin(request: Request):

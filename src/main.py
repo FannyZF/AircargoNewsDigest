@@ -258,6 +258,17 @@ def cmd_web(config: dict, _args):
             cmd_collect(config, None)
             cmd_process(config, None)
             cmd_report(config, None)
+            from src.utils.subscription_store import get_active_subscribers
+            from src.utils.mailer import send_digest_email
+            from pathlib import Path
+            from datetime import datetime
+            subs = get_active_subscribers()
+            if subs:
+                today = datetime.now().strftime("%Y-%m-%d")
+                pattern = config.get("output", {}).get("filename_pattern", "daily_{date}.html")
+                html_file = Path(config.get("output", {}).get("dir", "./output")) / pattern.format(date=today)
+                result = send_digest_email(subs, html_file, today)
+                logger.info("Email send result: %s", result)
             logger.info("=== Scheduled daily run complete ===")
         except Exception as e:
             logger.error("Scheduled run failed: %s", e)

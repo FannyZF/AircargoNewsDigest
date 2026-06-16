@@ -44,6 +44,22 @@
     <div id="schedule-msg" style="margin-top:12px;font-size:13px;"></div>
 </div>
 
+<div class="card" style="max-width:600px;margin-top:24px;">
+    <h3 style="margin-bottom:16px;">邮件发送 (SMTP)</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">配置后，每日日报将通过邮件发送给订阅用户。</p>
+    <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
+        <div><label style="font-weight:500;display:block;font-size:13px;">SMTP 服务器</label><input type="text" id="smtp-host" placeholder="smtp.example.com" style="width:100%;"/></div>
+        <div><label style="font-weight:500;display:block;font-size:13px;">端口</label><input type="number" id="smtp-port" value="465" style="width:100%;"/></div>
+        <div><label style="font-weight:500;display:block;font-size:13px;">用户名</label><input type="text" id="smtp-user" placeholder="user@example.com" style="width:100%;"/></div>
+        <div><label style="font-weight:500;display:block;font-size:13px;">密码</label><input type="password" id="smtp-pass" placeholder="密码或授权码" style="width:100%;"/></div>
+        <div style="grid-column:1/-1;"><label style="font-weight:500;display:block;font-size:13px;">发件人地址</label><input type="text" id="smtp-sender" placeholder="news@example.com" style="width:100%;"/></div>
+    </div>
+    <div style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="saveSmtp()" id="save-smtp-btn">保存 SMTP 配置</button>
+    </div>
+    <div id="smtp-msg" style="margin-top:12px;font-size:13px;"></div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script>
@@ -95,10 +111,49 @@ async function saveSchedule() {
         });
         const data = await resp.json();
         if (resp.ok) {
-            document.getElementById('schedule-msg').innerHTML = '<span style="color:#2e7d32;">&#10004; ' + data.message + '</span>';
+            document.getElementById('schedule-msg').innerHTML = '<span style="color:var(--green);">' + data.message + '</span>';
         } else {
-            document.getElementById('schedule-msg').innerHTML = '<span style="color:#c62828;">' + data.detail + '</span>';
+            document.getElementById('schedule-msg').innerHTML = '<span style="color:var(--red);">' + data.detail + '</span>';
         }
+    } catch(e) {
+        document.getElementById('schedule-msg').innerHTML = '<span style="color:var(--red);">保存失败</span>';
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    }
+}
+
+async function saveSmtp() {
+    const btn = document.getElementById('save-smtp-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+    try {
+        const data = {
+            host: document.getElementById('smtp-host').value.trim(),
+            port: parseInt(document.getElementById('smtp-port').value) || 465,
+            user: document.getElementById('smtp-user').value.trim(),
+            password: document.getElementById('smtp-pass').value,
+            sender: document.getElementById('smtp-sender').value.trim(),
+        };
+        const resp = await fetch('/api/settings/smtp', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await resp.json();
+        if (resp.ok) {
+            document.getElementById('smtp-msg').innerHTML = '<span style="color:var(--green);">' + result.message + '</span>';
+        } else {
+            document.getElementById('smtp-msg').innerHTML = '<span style="color:var(--red);">' + result.detail + '</span>';
+        }
+    } catch(e) {
+        document.getElementById('smtp-msg').innerHTML = '<span style="color:var(--red);">保存失败</span>';
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    }
+}
     } catch(e) {
         document.getElementById('schedule-msg').innerHTML = '<span style="color:#c62828;">保存失败</span>';
     } finally {

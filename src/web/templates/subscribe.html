@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}邮件订阅 - 空运新闻速递{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2>邮件订阅</h2>
+    <div class="subtitle">每日日报自动发送到您的邮箱</div>
+</div>
+
+<div class="card" style="max-width:500px;">
+    <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">订阅日报</h3>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="email" id="subscribe-email" placeholder="your@email.com" style="flex:1;"/>
+        <button class="btn btn-primary" onclick="subscribe()" id="sub-btn">订阅</button>
+    </div>
+    <div id="sub-msg" style="font-size:13px;"></div>
+</div>
+
+<div class="card" style="max-width:500px;margin-top:16px;">
+    <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">退订</h3>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="email" id="unsub-email" placeholder="your@email.com" style="flex:1;"/>
+        <button class="btn btn-outline" onclick="unsubscribe()" id="unsub-btn">退订</button>
+    </div>
+    <div id="unsub-msg" style="font-size:13px;"></div>
+</div>
+
+<p style="color:var(--text-tertiary);font-size:12px;margin-top:16px;">当前订阅人数: {{ count }} | 每天 23:00 定时发送</p>
+{% endblock %}
+{% block scripts %}
+<script>
+async function subscribe() {
+    const email = document.getElementById('subscribe-email').value.trim();
+    if (!email) return;
+    const btn = document.getElementById('sub-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/subscribe', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email})
+        });
+        const data = await resp.json();
+        const el = document.getElementById('sub-msg');
+        if (resp.ok) { el.innerHTML = '<span style="color:var(--green);">' + data.message + '</span>'; }
+        else { el.innerHTML = '<span style="color:var(--red);">' + data.detail + '</span>'; }
+    } catch(e) {
+        document.getElementById('sub-msg').innerHTML = '<span style="color:var(--red);">网络错误</span>';
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    }
+}
+async function unsubscribe() {
+    const email = document.getElementById('unsub-email').value.trim();
+    if (!email) return;
+    const btn = document.getElementById('unsub-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/api/unsubscribe', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email})
+        });
+        const data = await resp.json();
+        const el = document.getElementById('unsub-msg');
+        if (resp.ok) { el.innerHTML = '<span style="color:var(--green);">' + data.message + '</span>'; }
+        else { el.innerHTML = '<span style="color:var(--red);">' + data.detail + '</span>'; }
+    } catch(e) {
+        document.getElementById('unsub-msg').innerHTML = '<span style="color:var(--red);">网络错误</span>';
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}
