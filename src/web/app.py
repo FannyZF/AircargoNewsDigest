@@ -4,11 +4,13 @@ from pathlib import Path
 from collections import Counter
 import json
 
-from fastapi import FastAPI, Request, Query, Body
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, Query, Body, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from jinja2 import Environment, FileSystemLoader
+import secrets
+import base64
 
 from src.storage.db import Database
 from src.storage.models import NewsItem, CATEGORY_LABELS, REGION_LABELS
@@ -20,6 +22,27 @@ from src.utils.key_store import load_api_key, save_api_key
 from src.utils.schedule_store import load_schedule, save_schedule
 from src.utils.subscription_store import add_subscriber, remove_subscriber, get_active_subscribers, load_subscribers
 from src.utils.mailer import save_smtp_config, load_smtp_config, send_digest_email
+
+PUBLIC_PATHS = {"/s", "/api/public/subscribe", "/api/public/unsubscribe", "/api/subscribe", "/api/unsubscribe",
+                "/api/subscribe/count", "/favicon.ico"}
+PUBLIC_PREFIXES = ["/digests"]
+
+AUTH_FILE = Path("data/access.json")
+
+
+def load_access_password() -> str:
+    if AUTH_FILE.exists():
+        try:
+            data = json.loads(AUTH_FILE.read_text(encoding="utf-8"))
+            return data.get("password", "")
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return ""
+
+
+def save_access_password(password: str):
+    AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
+    AUTH_FILE.write_text(json.dumps({"password": password}, indent=2), encoding="utf-8")
 
 logger = setup_logger("web")
 
@@ -39,6 +62,23 @@ def create_app(config: dict) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Auth middleware
+    @app.middleware("http")
+    async def auth_middleware(request: Request, call_next):
+        path = request.url.path
+        if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
+            return await call_next(request)
+        password = load_access_password()
+        if not password:
+            return await call_next(request)
+        auth = request.headers.get("Authorization", "")
+        expected = "Basic " + base64.b64encode(f"admin:{password}".encode()).decode()
+        if auth == expected:
+            return await call_next(request)
+        if auth:
+            return PlainTextResponse("密码错误", status_code=401, headers={"WWW-Authenticate": 'Basic realm="空运新闻速递"'})
+        return PlainTextResponse("需要登录", status_code=401, headers={"WWW-Authenticate": 'Basic realm="空运新闻速递"'})
     db = Database()
     scraper = Scraper(config)
 
@@ -416,6 +456,14 @@ def create_app(config: dict) -> FastAPI:
             return JSONResponse({"detail": "时间格式无效，请使用 HH:MM"}, status_code=400)
         save_schedule(time_str)
         return JSONResponse({"status": "ok", "message": f"定时已更新: 每天 {time_str} (重启服务后生效)"})
+
+    @app.post("/api/settings/access-password")
+    async def set_access_password(data: dict = Body(...)):
+        pw = data.get("password", "").strip()
+        save_access_password(pw)
+        if pw:
+            return JSONResponse({"status": "ok", "message": f"访问密码已设置 (用户名: admin)"})
+        return JSONResponse({"status": "ok", "message": "访问密码已清除，无需登录"})
 
     @app.post("/api/settings/smtp")
     async def set_smtp(data: dict = Body(...)):

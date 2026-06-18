@@ -60,6 +60,16 @@
     <div id="smtp-msg" style="margin-top:12px;font-size:13px;"></div>
 </div>
 
+<div class="card" style="max-width:600px;margin-top:24px;">
+    <h3 style="margin-bottom:16px;">访问控制</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">设置访问密码后，除订阅页面外，其他页面需要登录。用户名固定为 <code>admin</code>。</p>
+    <div style="display:flex;gap:8px;align-items:end;">
+        <div style="flex:1;"><label style="font-weight:500;display:block;font-size:13px;">访问密码</label><input type="password" id="access-password" placeholder="留空则不限制访问" style="width:100%;"/></div>
+        <button class="btn btn-primary" onclick="saveAccessPassword()" id="save-access-btn">保存</button>
+    </div>
+    <div id="access-msg" style="margin-top:12px;font-size:13px;"></div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script>
@@ -149,6 +159,33 @@ async function saveSmtp() {
         }
     } catch(e) {
         document.getElementById('smtp-msg').innerHTML = '<span style="color:var(--red);">保存失败</span>';
+    } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    }
+}
+async function saveAccessPassword() {
+    const btn = document.getElementById('save-access-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+    try {
+        const pw = document.getElementById('access-password').value.trim();
+        const resp = await fetch('/api/settings/access-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: pw})
+        });
+        const data = await resp.json();
+        const el = document.getElementById('access-msg');
+        if (resp.ok) {
+            el.innerHTML = '<span style="color:var(--green);">' + data.message + '</span>';
+            if (pw) setTimeout(function() { location.reload(); }, 1500);
+        } else {
+            el.innerHTML = '<span style="color:var(--red);">' + data.detail + '</span>';
+        }
+    } catch(e) {
+        document.getElementById('access-msg').innerHTML = '<span style="color:var(--red);">保存失败</span>';
     } finally {
         btn.innerHTML = orig;
         btn.disabled = false;
