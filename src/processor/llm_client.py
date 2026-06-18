@@ -95,7 +95,7 @@ class LLMClient:
             api_key=api_key,
             base_url=llm_cfg.get("base_url", "https://api.deepseek.com"),
         )
-        self.model = llm_cfg.get("model", "deepseek-chat")
+        self.model = llm_cfg.get("model", "deepseek-v4-flash")
         self.temperature = llm_cfg.get("temperature", 0.3)
         self.max_tokens = llm_cfg.get("max_tokens", 4096)
 

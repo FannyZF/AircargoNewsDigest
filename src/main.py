@@ -64,7 +64,7 @@ sources:
 # ==================== LLM 配置 ====================
 llm:
   provider: "deepseek"
-  model: "deepseek-chat"
+  model: "deepseek-v4-flash"
   api_key: "${DEEPSEEK_API_KEY}"
   base_url: "https://api.deepseek.com"
   temperature: 0.3
