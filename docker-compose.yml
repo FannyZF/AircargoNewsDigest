@@ -4,8 +4,10 @@ services:
     container_name: aircargo-news
     ports:
       - "18903:18903"
+      - "18913:18913"
     environment:
       - PORT=18903
+      - ADMIN_PORT=18913
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - TZ=Asia/Shanghai
     volumes:

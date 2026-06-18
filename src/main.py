@@ -246,12 +246,24 @@ def cmd_schedule(config: dict, _args):
 def cmd_web(config: dict, _args):
     import uvicorn
     import os
-    from src.web.app import create_app
+    import threading
+    from src.web.app import create_app, create_public_app
 
     port = int(os.environ.get("PORT", "18903"))
-    app = create_app(config)
+    admin_port = int(os.environ.get("ADMIN_PORT", "18913"))
 
-    # Start daily scheduler in background
+    # Public app (subscribe only) on PORT
+    public_app = create_public_app(config)
+    def run_public():
+        uvicorn.run(public_app, host="0.0.0.0", port=port, log_level="info")
+
+    # Admin app (full) on ADMIN_PORT
+    admin_app = create_app(config)
+    def run_admin():
+        uvicorn.run(admin_app, host="0.0.0.0", port=admin_port, log_level="info")
+
+    # Start daily scheduler
+    from src.scheduler.cron import Scheduler
     def daily_job():
         logger.info("=== Scheduled daily run starting ===")
         try:
@@ -280,8 +292,12 @@ def cmd_web(config: dict, _args):
     sched_cfg = get_schedule_config(config)
     logger.info("Daily scheduler started, runs at %s %s", sched_cfg["time"], sched_cfg["timezone"])
 
-    logger.info("Starting web server at http://0.0.0.0:%d", port)
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    logger.info("Public: http://0.0.0.0:%d (subscribe only)", port)
+    logger.info("Admin: http://0.0.0.0:%d (full management)", admin_port)
+
+    t1 = threading.Thread(target=run_public, daemon=True)
+    t1.start()
+    run_admin()
 
 
 def main():
