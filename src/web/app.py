@@ -20,6 +20,7 @@ from src.utils.key_store import load_api_key, save_api_key
 from src.utils.schedule_store import load_schedule, save_schedule
 from src.utils.subscription_store import add_subscriber, remove_subscriber, get_active_subscribers, load_subscribers
 from src.utils.mailer import save_smtp_config, load_smtp_config, send_digest_email
+from src.utils.webhook_store import load_webhooks, add_webhook, remove_webhook, get_active_webhooks
 
 logger = setup_logger("web")
 
@@ -116,16 +117,23 @@ def create_app(config: dict) -> FastAPI:
         if not f.exists():
             return JSONResponse({"detail": f"{date_str} 日报文件不存在"}, status_code=404)
         smtp_cfg = load_smtp_config()
-        if not smtp_cfg.get("host"):
-            return JSONResponse({"detail": "SMTP 未配置，请先在设置页面配置邮件服务器"}, status_code=400)
+        webhooks = get_active_webhooks()
         sub_count = len(get_active_subscribers())
-        if sub_count == 0:
-            return JSONResponse({"detail": "没有订阅者，请先在订阅页面添加"}, status_code=400)
+        if not smtp_cfg.get("host") and not webhooks:
+            return JSONResponse({"detail": "SMTP 和 Webhook 均未配置，请先在设置页面配置"}, status_code=400)
         def _run():
-            result = send_digest_email(get_active_subscribers(), f, date_str)
-            logger.info("Push result: %s", result)
+            if smtp_cfg.get("host") and sub_count > 0:
+                send_digest_email(get_active_subscribers(), f, date_str)
+            if webhooks:
+                from src.utils.webhook_sender import send_to_webhooks
+                send_to_webhooks(webhooks, f, date_str)
         threading.Thread(target=_run, daemon=True).start()
-        return JSONResponse({"status": "started", "message": f"正在推送 {date_str} 日报给 {sub_count} 位订阅者"})
+        msgs = []
+        if smtp_cfg.get("host") and sub_count > 0:
+            msgs.append(f"{sub_count} 位订阅者")
+        if webhooks:
+            msgs.append(f"{len(webhooks)} 个 Webhook")
+        return JSONResponse({"status": "started", "message": f"正在推送: {', '.join(msgs)}"})
 
     @app.get("/search", response_class=HTMLResponse)
     async def search_page(request: Request):
@@ -428,6 +436,29 @@ def create_app(config: dict) -> FastAPI:
             return JSONResponse({"detail": "所有 SMTP 字段必填"}, status_code=400)
         save_smtp_config(host, port, user, password, sender)
         return JSONResponse({"status": "ok", "message": "SMTP 配置已保存"})
+
+    @app.get("/api/settings/webhooks")
+    async def get_webhooks():
+        return JSONResponse(load_webhooks())
+
+    @app.post("/api/settings/webhooks")
+    async def add_webhook_endpoint(data: dict = Body(...)):
+        url = data.get("url", "").strip()
+        name = data.get("name", "").strip()
+        if not url:
+            return JSONResponse({"detail": "URL 不能为空"}, status_code=400)
+        ok = add_webhook(url, name)
+        if ok:
+            return JSONResponse({"status": "ok", "message": f"Webhook 已添加"})
+        return JSONResponse({"detail": "该 URL 已存在"}, status_code=400)
+
+    @app.delete("/api/settings/webhooks")
+    async def delete_webhook(data: dict = Body(...)):
+        url = data.get("url", "").strip()
+        ok = remove_webhook(url)
+        if ok:
+            return JSONResponse({"status": "ok", "message": "已删除"})
+        return JSONResponse({"detail": "未找到该 Webhook"}, status_code=404)
 
     @app.get("/api/subscribe/count")
     async def subscribe_count():

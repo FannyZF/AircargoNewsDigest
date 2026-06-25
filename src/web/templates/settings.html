@@ -60,6 +60,18 @@
     <div id="smtp-msg" style="margin-top:12px;font-size:13px;"></div>
 </div>
 
+<div class="card" style="max-width:600px;margin-top:24px;">
+    <h3 style="margin-bottom:16px;">Webhook 推送</h3>
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">每天生成日报后，自动将 HTML 内容 POST 到以下地址。</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="text" id="wh-url" placeholder="https://example.com/api/webhook" style="flex:1;"/>
+        <input type="text" id="wh-name" placeholder="名称 (可选)" style="width:140px;"/>
+        <button class="btn btn-primary" onclick="addWebhook()" id="add-wh-btn">添加</button>
+    </div>
+    <div id="wh-list" style="font-size:13px;"></div>
+    <div id="wh-msg" style="margin-top:8px;font-size:13px;"></div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script>
@@ -181,5 +193,58 @@ async function saveAccessPassword() {
         btn.disabled = false;
     }
 }
+
+async function loadWebhooks() {
+    try {
+        const resp = await fetch('/api/settings/webhooks');
+        const data = await resp.json();
+        const list = document.getElementById('wh-list');
+        if (data.length === 0) {
+            list.innerHTML = '<span style="color:var(--text-tertiary);">暂无 Webhook</span>';
+            return;
+        }
+        list.innerHTML = data.map(function(w, i) {
+            return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);"><span>' + (w.name || w.url) + ' <code style="font-size:11px;">' + w.url + '</code></span><button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;" onclick="deleteWebhook(\'' + w.url.replace(/'/g,"\\'") + '\')">删除</button></div>';
+        }).join('');
+    } catch(e) {}
+}
+
+async function addWebhook() {
+    const url = document.getElementById('wh-url').value.trim();
+    const name = document.getElementById('wh-name').value.trim();
+    if (!url) return;
+    const btn = document.getElementById('add-wh-btn');
+    btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+    try {
+        const resp = await fetch('/api/settings/webhooks', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url: url, name: name})
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            document.getElementById('wh-msg').innerHTML = '<span style="color:var(--green);">' + data.message + '</span>';
+            document.getElementById('wh-url').value = '';
+            document.getElementById('wh-name').value = '';
+            loadWebhooks();
+        } else {
+            document.getElementById('wh-msg').innerHTML = '<span style="color:var(--red);">' + data.detail + '</span>';
+        }
+    } catch(e) {
+        document.getElementById('wh-msg').innerHTML = '<span style="color:var(--red);">添加失败</span>';
+    } finally { btn.innerHTML = '添加'; btn.disabled = false; }
+}
+
+async function deleteWebhook(url) {
+    try {
+        await fetch('/api/settings/webhooks', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url: url})
+        });
+        loadWebhooks();
+    } catch(e) {}
+}
+loadWebhooks();
 </script>
 {% endblock %}

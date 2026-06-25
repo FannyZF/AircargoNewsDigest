@@ -282,6 +282,12 @@ def cmd_web(config: dict, _args):
                 if html_file.exists():
                     result = send_digest_email(subs, html_file, yesterday)
                     logger.info("Email send result: %s", result)
+                from src.utils.webhook_store import get_active_webhooks
+                from src.utils.webhook_sender import send_to_webhooks
+                webhooks = get_active_webhooks()
+                if webhooks and html_file.exists():
+                    wh_result = send_to_webhooks(webhooks, html_file, yesterday)
+                    logger.info("Webhook send result: %s", wh_result)
             logger.info("=== Scheduled daily run complete ===")
         except Exception as e:
             logger.error("Scheduled run failed: %s", e)
