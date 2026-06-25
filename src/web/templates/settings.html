@@ -69,6 +69,10 @@
         <button class="btn btn-primary" onclick="addWebhook()" id="add-wh-btn">添加</button>
     </div>
     <div id="wh-list" style="font-size:13px;"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:end;">
+        <div style="flex:1;"><label style="font-weight:500;display:block;font-size:13px;">验证密钥 (可选)</label><input type="text" id="wh-secret" placeholder="设置后请求头带 X-Webhook-Secret" style="width:100%;"/></div>
+        <button class="btn btn-outline btn-sm" onclick="saveWebhookSecret()">保存密钥</button>
+    </div>
     <div id="wh-msg" style="margin-top:8px;font-size:13px;"></div>
 </div>
 
@@ -243,6 +247,18 @@ async function deleteWebhook(url) {
             body: JSON.stringify({url: url})
         });
         loadWebhooks();
+    } catch(e) {}
+}
+async function saveWebhookSecret() {
+    const secret = document.getElementById('wh-secret').value.trim();
+    try {
+        const resp = await fetch('/api/settings/webhook-secret', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({secret: secret})
+        });
+        const data = await resp.json();
+        document.getElementById('wh-msg').innerHTML = '<span style="color:var(--green);">' + data.message + '</span>';
     } catch(e) {}
 }
 loadWebhooks();

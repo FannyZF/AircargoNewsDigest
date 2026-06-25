@@ -2,6 +2,7 @@ import httpx
 from pathlib import Path
 
 from src.utils.logger import setup_logger
+from src.utils.webhook_store import load_webhook_secret
 
 logger = setup_logger("webhook")
 
@@ -21,14 +22,15 @@ def send_to_webhooks(webhooks: list[dict], html_path: Path, date_str: str) -> di
         "html": html_content,
     }
 
+    secret = load_webhook_secret(webhooks)
+    base_headers = {"Content-Type": "application/json", "User-Agent": "AirCargoNewsDigest/1.0"}
+    if secret:
+        base_headers["X-Webhook-Secret"] = secret
+
     for wh in webhooks:
         try:
             with httpx.Client(timeout=30) as client:
-                resp = client.post(
-                    wh["url"],
-                    json=payload,
-                    headers={"Content-Type": "application/json", "User-Agent": "AirCargoNewsDigest/1.0"},
-                )
+                resp = client.post(wh["url"], json=payload, headers=base_headers)
                 if resp.status_code < 400:
                     sent += 1
                     logger.info("Webhook sent to %s: %d", wh["url"], resp.status_code)

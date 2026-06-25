@@ -42,3 +42,22 @@ def remove_webhook(url: str) -> bool:
 
 def get_active_webhooks() -> list[dict]:
     return [w for w in load_webhooks() if w.get("enabled", True)]
+
+
+SECRET_FILE = Path("data/webhook_secret.json")
+
+
+def load_webhook_secret(webhooks: list[dict]) -> str:
+    # per-webhook: use each webhook's own secret, fallback to global
+    if SECRET_FILE.exists():
+        try:
+            data = json.loads(SECRET_FILE.read_text(encoding="utf-8"))
+            return data.get("secret", "")
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return ""
+
+
+def save_webhook_secret(secret: str):
+    SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SECRET_FILE.write_text(json.dumps({"secret": secret}, indent=2), encoding="utf-8")

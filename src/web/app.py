@@ -20,7 +20,7 @@ from src.utils.key_store import load_api_key, save_api_key
 from src.utils.schedule_store import load_schedule, save_schedule
 from src.utils.subscription_store import add_subscriber, remove_subscriber, get_active_subscribers, load_subscribers
 from src.utils.mailer import save_smtp_config, load_smtp_config, send_digest_email
-from src.utils.webhook_store import load_webhooks, add_webhook, remove_webhook, get_active_webhooks
+from src.utils.webhook_store import load_webhooks, add_webhook, remove_webhook, get_active_webhooks, save_webhook_secret, load_webhook_secret
 
 logger = setup_logger("web")
 
@@ -459,6 +459,14 @@ def create_app(config: dict) -> FastAPI:
         if ok:
             return JSONResponse({"status": "ok", "message": "已删除"})
         return JSONResponse({"detail": "未找到该 Webhook"}, status_code=404)
+
+    @app.post("/api/settings/webhook-secret")
+    async def set_webhook_secret(data: dict = Body(...)):
+        secret = data.get("secret", "").strip()
+        save_webhook_secret(secret)
+        if secret:
+            return JSONResponse({"status": "ok", "message": "Webhook 密钥已设置"})
+        return JSONResponse({"status": "ok", "message": "Webhook 密钥已清除，无需验证"})
 
     @app.get("/api/subscribe/count")
     async def subscribe_count():
