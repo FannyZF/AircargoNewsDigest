@@ -69,10 +69,6 @@
         <button class="btn btn-primary" onclick="addWebhook()" id="add-wh-btn">添加</button>
     </div>
     <div id="wh-list" style="font-size:13px;"></div>
-    <div style="margin-top:12px;display:flex;gap:8px;align-items:end;">
-        <div style="flex:1;"><label style="font-weight:500;display:block;font-size:13px;">验证密钥 (可选)</label><input type="text" id="wh-secret" placeholder="设置后请求头带 X-Webhook-Secret" style="width:100%;"/></div>
-        <button class="btn btn-outline btn-sm" onclick="saveWebhookSecret()">保存密钥</button>
-    </div>
     <div id="wh-msg" style="margin-top:8px;font-size:13px;"></div>
 </div>
 
@@ -208,7 +204,16 @@ async function loadWebhooks() {
             return;
         }
         list.innerHTML = data.map(function(w, i) {
-            return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border);"><span>' + (w.name || w.url) + ' <code style="font-size:11px;">' + w.url + '</code></span><button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;" onclick="deleteWebhook(\'' + w.url.replace(/'/g,"\\'") + '\')">删除</button></div>';
+            return '<div style="padding:8px 0;border-bottom:0.5px solid var(--border);">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<span style="font-weight:500;">' + (w.name || w.url) + '</span>' +
+                '<div style="display:flex;gap:4px;">' +
+                '<button class="btn btn-sm btn-outline" onclick="regenerateSecret(\'' + w.url.replace(/'/g,"\\'") + '\')">重置密钥</button>' +
+                '<button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;" onclick="deleteWebhook(\'' + w.url.replace(/'/g,"\\'") + '\')">删除</button>' +
+                '</div></div>' +
+                '<div style="color:var(--text-tertiary);font-size:11px;margin-top:3px;">URL: ' + w.url + '</div>' +
+                '<div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">密钥: <code>' + (w.secret || '无') + '</code><button class="btn btn-sm" style="margin-left:6px;font-size:11px;padding:1px 8px;" onclick="copyText(\'' + (w.secret || '') + '\')">复制</button></div>' +
+                '</div>';
         }).join('');
     } catch(e) {}
 }
@@ -227,7 +232,7 @@ async function addWebhook() {
         });
         const data = await resp.json();
         if (resp.ok) {
-            document.getElementById('wh-msg').innerHTML = '<span style="color:var(--green);">' + data.message + '</span>';
+            document.getElementById('wh-msg').innerHTML = '<span style="color:var(--green);">已添加, 密钥: <code>' + data.secret + '</code></span>';
             document.getElementById('wh-url').value = '';
             document.getElementById('wh-name').value = '';
             loadWebhooks();
@@ -249,17 +254,24 @@ async function deleteWebhook(url) {
         loadWebhooks();
     } catch(e) {}
 }
-async function saveWebhookSecret() {
-    const secret = document.getElementById('wh-secret').value.trim();
+async function regenerateSecret(url) {
     try {
-        const resp = await fetch('/api/settings/webhook-secret', {
+        const resp = await fetch('/api/settings/webhooks/regenerate', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({secret: secret})
+            body: JSON.stringify({url: url})
         });
         const data = await resp.json();
-        document.getElementById('wh-msg').innerHTML = '<span style="color:var(--green);">' + data.message + '</span>';
+        if (resp.ok) {
+            document.getElementById('wh-msg').innerHTML = '<span style="color:var(--green);">新密钥: <code>' + data.secret + '</code></span>';
+            loadWebhooks();
+        }
     } catch(e) {}
+}
+function copyText(text) {
+    if (!text) return;
+    if (navigator.clipboard) { navigator.clipboard.writeText(text); return; }
+    var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
 }
 loadWebhooks();
 </script>
