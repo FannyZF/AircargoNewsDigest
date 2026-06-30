@@ -179,7 +179,7 @@ class Scraper:
         if not link_el:
             return None
 
-        href = link_el.get("href", "")
+        href = link_el.get("href", "") or link_el.get("data-url", "")
         if not href:
             return None
 

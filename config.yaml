@@ -35,6 +35,23 @@ sources:
       pattern: ""
       start: 1
 
+  - name: "Air Cargo Week"
+    base_url: "https://aircargoweek.com"
+    list_url: "https://aircargoweek.com/news/"
+    enabled: true
+    selectors:
+      list_container: ".jet-listing-grid__item"
+      title: "h2, h3"
+      link: ".jet-engine-listing-overlay-wrap"
+      date: ".elementor-post-info time"
+      date_attr: "datetime"
+      summary: ""
+    article_selector:
+      content: ".elementor-widget-theme-post-content, article"
+    pagination:
+      pattern: "/news/page/{page}/"
+      start: 1
+
 # ==================== LLM 配置 ====================
 llm:
   provider: "deepseek"
